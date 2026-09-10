@@ -1,238 +1,356 @@
 <!doctype html>
 <meta charset="utf-8">
-<style>
-  html,body{margin:0;padding:0;background:#000;overflow:hidden}
-  canvas{display:block}
-</style>
+<style>html,body{margin:0;padding:0;background:#000;overflow:hidden}canvas{display:block}</style>
 <canvas id="c" width="1080" height="1920"></canvas>
 <script>
-const C = document.getElementById('c');
-const X = C.getContext('2d');
-const W = 1080, H = 1920;
+const C=document.getElementById('c'), X=C.getContext('2d');
+const W=1080,H=1920, CX=W/2, CY=940;
 
-/* ---------- palette ---------- */
-const LINEN_A = '#f3ece1', LINEN_B = '#e4d9c8';
-const INK = '#241f19', INK_SOFT = '#6b6055';
-const GOLD_D = '#8a6a1f', GOLD_M = '#d9b451', GOLD_L = '#f5e39c';
-const STEEL_D = '#7d8288', STEEL_M = '#b9bfc5', STEEL_L = '#e6eaee';
+/* ── palette ───────────────────────────────────────────── */
+const LIN_1='#f5f0e6', LIN_2='#e6dccb', LIN_3='#d8ccb6';
+const INK='#231f19', INK_2='#5d564b', INK_3='#8d8474';
+const G_SH='#6d5116', G_MD='#c9a542', G_HI='#f7e8ae', G_RM='#9c7a28';
+const S_SH='#6f757b', S_MD='#aab1b8', S_HI='#e9eef2';
 
-/* ---------- easing ---------- */
-const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
-const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
-const easeOut=t=>1-Math.pow(1-t,3);
-const easeIn=t=>t*t*t;
-// deterministic pseudo-noise
-const noise=(x)=>Math.sin(x*12.9898)*43758.5453%1;
-const nz=(x)=>{const v=noise(x);return v-Math.floor(v)-0.5;};
+const SERIF='"Bitstream Charter","Charter",Georgia,serif';
+const MONO='"DejaVu Sans Mono","Liberation Mono",monospace';
 
-/* segment helper: returns 0..1 progress within [a,b], clamped */
-const seg=(t,a,b)=>clamp((t-a)/(b-a),0,1);
+/* ── math ──────────────────────────────────────────────── */
+const cl=(v,a,b)=>Math.min(b,Math.max(a,v));
+const seg=(t,a,b)=>cl((t-a)/(b-a),0,1);
+const eOut=t=>1-Math.pow(1-t,3);
+const eIn =t=>t*t*t;
+const eInOut=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const eBack=t=>{const c=1.7;return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2)};
+const lerp=(a,b,p)=>a+(b-a)*p;
+function hash(n){const s=Math.sin(n*127.1)*43758.5453;return s-Math.floor(s)}
+const sn=n=>hash(n)*2-1;
 
-/* ---------- primitives ---------- */
-function roundRect(x,y,w,h,r){
-  X.beginPath();
-  X.moveTo(x+r,y);
-  X.arcTo(x+w,y,x+w,y+h,r);
-  X.arcTo(x+w,y+h,x,y+h,r);
-  X.arcTo(x,y+h,x,y,r);
-  X.arcTo(x,y,x+w,y,r);
-  X.closePath();
-}
-
-function metalGrad(x,y,w,h,d,m,l){
-  const g=X.createLinearGradient(x,y,x,y+h);
-  g.addColorStop(0,l); g.addColorStop(.35,m);
-  g.addColorStop(.62,d); g.addColorStop(1,m);
-  return g;
-}
-
-function background(t){
-  const g=X.createLinearGradient(0,0,W*.3,H);
-  g.addColorStop(0,LINEN_A); g.addColorStop(1,LINEN_B);
+/* ── linen surface, built once ─────────────────────────── */
+function ground(){
+  const g=X.createLinearGradient(W*.12,0,W*.88,H);
+  g.addColorStop(0,LIN_1); g.addColorStop(.55,LIN_2); g.addColorStop(1,LIN_3);
   X.fillStyle=g; X.fillRect(0,0,W,H);
-  // soft vignette
-  const v=X.createRadialGradient(W/2,H*.46,120,W/2,H*.46,H*.72);
-  v.addColorStop(0,'rgba(0,0,0,0)');
-  v.addColorStop(1,'rgba(60,45,25,0.16)');
-  X.fillStyle=v; X.fillRect(0,0,W,H);
+  const w=X.createRadialGradient(W*.34,H*.30,60,W*.34,H*.30,H*.62);
+  w.addColorStop(0,'rgba(255,252,244,.55)'); w.addColorStop(1,'rgba(255,252,244,0)');
+  X.fillStyle=w; X.fillRect(0,0,W,H);
 }
 
-/* chain: links along a shallow catenary from edge to the clasp end */
-function chain(fromX, toX, y, sag, dir){
-  const n=26;
-  for(let i=0;i<=n;i++){
-    const p=i/n;
-    const x=fromX+(toX-fromX)*p;
-    const yy=y+Math.sin(p*Math.PI)*sag*(1-p*0.25);
-    const r=13+2*Math.sin(p*9);
-    X.save();
-    X.translate(x,yy);
-    X.rotate((toX-fromX)>0?0.12*Math.sin(p*7):-0.12*Math.sin(p*7));
-    X.strokeStyle = i%2 ? metalGrad(-r,-r*0.62,r*2,r*1.24,GOLD_D,GOLD_M,GOLD_L)
-                        : metalGrad(-r,-r*0.62,r*2,r*1.24,GOLD_D,GOLD_L,GOLD_M);
-    X.lineWidth=5.2;
-    X.beginPath(); X.ellipse(0,0,r,r*0.62,0,0,Math.PI*2); X.stroke();
-    X.restore();
+/* ── film grain tile, built once ───────────────────────── */
+const grain=document.createElement('canvas'); grain.width=grain.height=256;
+(function(){
+  const g=grain.getContext('2d'), d=g.createImageData(256,256);
+  for(let i=0;i<d.data.length;i+=4){
+    const v=200+Math.random()*55;
+    d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=255;
   }
+  g.putImageData(d,0,0);
+})();
+const grainPat=X.createPattern(grain,'repeat');
+
+/* ── camera ────────────────────────────────────────────── */
+function camera(t){
+  let s,x=0,y=0;
+  if(t<2.75){                       // ACT 1 — slow push in
+    s=lerp(2.35,2.72,eInOut(seg(t,0,2.75)));
+    y=lerp(-14,10,seg(t,0,2.75));
+  } else {                          // ACT 2/3 — wider, gentle drift
+    s=lerp(1.92,1.74,eOut(seg(t,2.75,6.8)));
+    y=lerp(6,-8,seg(t,2.75,6.8));
+  }
+  // impact shake
+  const k=seg(t,4.42,4.95);
+  if(k>0&&k<1){
+    const d=Math.exp(-k*8);
+    x+=sn(Math.floor(t*90))*26*d;
+    y+=sn(Math.floor(t*90)+77)*20*d;
+    s*=1+0.035*Math.exp(-k*11)*Math.cos(k*30);
+  }
+  return {s,x,y};
 }
 
-/* a magnetic clasp half — cylinder barrel */
-function clasp(cx,cy,facing,scale,glow){
-  const w=96*scale, h=64*scale;
+/* ── ground shadow under an object ─────────────────────── */
+function shadow(drawFn,dx,dy,blur,alpha){
   X.save();
-  X.translate(cx,cy);
-  // drop shadow
-  X.save();
-  X.filter='blur(10px)'; X.fillStyle='rgba(70,52,25,0.30)';
-  roundRect(-w/2, -h/2+16*scale, w, h, h/2); X.fill();
+  X.translate(dx,dy);
+  X.filter=`blur(${blur}px)`;
+  X.globalAlpha=alpha;
+  X.fillStyle='#4b3a1c';
+  drawFn();
   X.restore();
+}
+
+function rrPath(x,y,w,h,r){
+  X.beginPath();
+  X.moveTo(x+r,y); X.arcTo(x+w,y,x+w,y+h,r);
+  X.arcTo(x+w,y+h,x,y+h,r); X.arcTo(x,y+h,x,y,r);
+  X.arcTo(x,y,x+w,y,r); X.closePath();
+}
+
+/* ── gold barrel (the converter half) ──────────────────── */
+function converter(cx,cy,face,glow,spec){
+  const w=132,h=74,r=h/2;
+  X.save(); X.translate(cx,cy);
+
+  shadow(()=>rrPath(-w/2,-h/2,w,h,r), 6, 20, 13, .34);
 
   if(glow>0){
-    X.save();
-    X.globalAlpha=glow;
-    X.filter='blur(26px)';
-    X.fillStyle='#ffe9ab';
-    roundRect(-w/2-16,-h/2-16,w+32,h+32,(h+32)/2); X.fill();
+    X.save(); X.globalAlpha=glow*.85; X.filter='blur(30px)';
+    X.fillStyle='#ffeeb4'; rrPath(-w/2-22,-h/2-22,w+44,h+44,r+22); X.fill();
     X.restore();
   }
 
-  X.fillStyle=metalGrad(-w/2,-h/2,w,h,GOLD_D,GOLD_M,GOLD_L);
-  roundRect(-w/2,-h/2,w,h,h/2); X.fill();
+  // body
+  const g=X.createLinearGradient(0,-h/2,0,h/2);
+  g.addColorStop(0,G_RM); g.addColorStop(.16,G_HI); g.addColorStop(.42,G_MD);
+  g.addColorStop(.68,G_SH); g.addColorStop(.88,G_MD); g.addColorStop(1,G_RM);
+  X.fillStyle=g; rrPath(-w/2,-h/2,w,h,r); X.fill();
 
-  // flat mating face on the inner side
-  X.fillStyle='rgba(80,58,18,0.55)';
-  const fx = facing>0 ? w/2-5*scale : -w/2;
-  X.fillRect(fx,-h/2+3*scale,5*scale,h-6*scale);
+  // machined end rings
+  X.strokeStyle='rgba(70,50,12,.42)'; X.lineWidth=2;
+  [-w/2+22,w/2-22].forEach(x=>{X.beginPath();X.moveTo(x,-h/2+7);X.lineTo(x,h/2-7);X.stroke()});
 
-  // specular
-  X.save(); X.globalAlpha=.55;
-  X.fillStyle='#fff6d8';
-  roundRect(-w/2+12*scale,-h/2+8*scale,w-24*scale,10*scale,5*scale); X.fill();
+  // mating face
+  X.fillStyle='rgba(58,42,10,.55)';
+  X.fillRect(face>0? w/2-7 : -w/2, -h/2+4, 7, h-8);
+
+  // travelling specular
+  X.save();
+  X.globalCompositeOperation='screen';
+  const sx=lerp(-w/2,w/2,spec);
+  const sg=X.createLinearGradient(sx-40,0,sx+40,0);
+  sg.addColorStop(0,'rgba(255,255,255,0)');
+  sg.addColorStop(.5,'rgba(255,250,225,.55)');
+  sg.addColorStop(1,'rgba(255,255,255,0)');
+  X.fillStyle=sg; rrPath(-w/2,-h/2,w,h,r); X.fill();
   X.restore();
+
+  // top highlight
+  X.globalAlpha=.5; X.fillStyle='#fff8e0';
+  rrPath(-w/2+16,-h/2+9,w-32,9,4.5); X.fill();
+  X.globalAlpha=1;
   X.restore();
 }
 
-/* a fiddly spring-ring clasp (the "before") */
-function springRing(cx,cy,scale,openAmt){
-  X.save(); X.translate(cx,cy); X.scale(scale,scale);
-  X.strokeStyle=metalGrad(-30,-30,60,60,STEEL_D,STEEL_M,STEEL_L);
-  X.lineWidth=9; X.lineCap='round';
-  X.beginPath();
-  X.arc(0,0,28, 0.35+openAmt, Math.PI*2+0.15-openAmt);
-  X.stroke();
-  X.fillStyle=STEEL_M;
-  X.beginPath(); X.arc(24,-14,7,0,Math.PI*2); X.fill();
+/* ── chain ─────────────────────────────────────────────── */
+function chain(x0,x1,y,sag,ripple,t){
+  const n=30, dir=Math.sign(x1-x0);
+  for(let i=0;i<=n;i++){
+    const p=i/n;
+    const x=lerp(x0,x1,p);
+    let yy=y+Math.sin(p*Math.PI)*sag;
+    if(ripple>0){
+      const d=Math.abs(x-CX)/180;
+      yy+=Math.sin(d*3.1-ripple*17)*22*Math.exp(-d*.85)*Math.exp(-ripple*3.4);
+    }
+    const r=17;
+    // depth of field on the far ends
+    const foc=cl(1-Math.abs(x-CX)/620,0,1);
+    X.save();
+    if(foc<.6) X.filter=`blur(${(0.6-foc)*7}px)`;
+    X.translate(x,yy);
+    X.rotate(dir*0.16*Math.sin(p*8+i));
+    const g=X.createLinearGradient(0,-r,0,r);
+    if(i%2){g.addColorStop(0,G_HI);g.addColorStop(.5,G_MD);g.addColorStop(1,G_SH)}
+    else   {g.addColorStop(0,G_MD);g.addColorStop(.5,G_HI);g.addColorStop(1,G_RM)}
+    X.strokeStyle=g; X.lineWidth=6.4;
+    X.beginPath(); X.ellipse(0,0,r,r*.6,0,0,Math.PI*2); X.stroke();
+    X.restore();
+  }
+}
+
+/* ── spring ring (the "before") ────────────────────────── */
+function springRing(cx,cy,open,rot){
+  X.save(); X.translate(cx,cy); X.rotate(rot);
+  shadow(()=>{X.beginPath();X.arc(0,0,40,0,Math.PI*2);X.fill()},5,17,11,.28);
+  const g=X.createLinearGradient(0,-44,0,44);
+  g.addColorStop(0,S_HI); g.addColorStop(.45,S_MD); g.addColorStop(1,S_SH);
+  X.strokeStyle=g; X.lineWidth=13; X.lineCap='round';
+  X.beginPath(); X.arc(0,0,40,0.30+open,Math.PI*2+0.02-open); X.stroke();
+  X.fillStyle=S_MD; X.beginPath(); X.arc(35,-20,9.5,0,Math.PI*2); X.fill();
+  X.restore();
+}
+function hookEnd(cx,cy,rot){
+  X.save(); X.translate(cx,cy); X.rotate(rot);
+  shadow(()=>{X.beginPath();X.arc(0,0,26,0,Math.PI*2);X.fill()},5,16,10,.26);
+  const g=X.createLinearGradient(0,-26,0,26);
+  g.addColorStop(0,S_HI); g.addColorStop(.5,S_MD); g.addColorStop(1,S_SH);
+  X.strokeStyle=g; X.lineWidth=11; X.lineCap='round';
+  X.beginPath(); X.arc(0,0,24,-2.5,1.1); X.stroke();
   X.restore();
 }
 
-/* ---------- type ---------- */
-function textBlock(lines, y, size, color, alpha, weight, track){
+/* ── snap particles ────────────────────────────────────── */
+function sparks(k){
+  if(k<=0||k>=1) return;
+  X.save(); X.globalCompositeOperation='screen';
+  for(let i=0;i<16;i++){
+    const a=(i/16)*Math.PI*2+hash(i)*1.1;
+    const sp=110+hash(i+9)*190;
+    const d=eOut(k)*sp;
+    X.globalAlpha=(1-k)*.85;
+    X.fillStyle= i%3? '#ffe9a8':'#fff6d6';
+    X.beginPath();
+    X.arc(CX+Math.cos(a)*d, CY+Math.sin(a)*d*.55, (1-k)*4.5+1, 0, Math.PI*2);
+    X.fill();
+  }
+  X.restore();
+}
+
+/* ── typography ────────────────────────────────────────── */
+function caption(label,line,y,alpha,shift){
+  if(alpha<=0) return;
   X.save();
   X.globalAlpha=alpha;
-  X.textAlign='center'; X.textBaseline='middle';
-  X.fillStyle=color;
-  X.font=`${weight||600} ${size}px "DejaVu Sans", "Liberation Sans", system-ui, sans-serif`;
-  if(track){ X.letterSpacing = track+'px'; }
-  lines.forEach((ln,i)=>{
-    X.fillText(ln, W/2, y + i*(size*1.22));
-  });
-  X.letterSpacing='0px';
+  X.translate(0,shift);
+  X.textAlign='center'; X.textBaseline='alphabetic';
+
+  if(label){
+    X.strokeStyle=INK_3; X.globalAlpha=alpha*.45; X.lineWidth=1.4;
+    X.beginPath(); X.moveTo(CX-44,y-206); X.lineTo(CX+44,y-206); X.stroke();
+    X.globalAlpha=alpha;
+    X.font=`500 25px ${MONO}`; X.letterSpacing='9px';
+    X.fillStyle=INK_3; X.fillText(label,CX+4,y-150);
+    X.letterSpacing='0px';
+  } else {
+    X.strokeStyle=INK_3; X.globalAlpha=alpha*.45; X.lineWidth=1.4;
+    X.beginPath(); X.moveTo(CX-44,y-150); X.lineTo(CX+44,y-150); X.stroke();
+    X.globalAlpha=alpha;
+  }
+
+  X.font=`400 76px ${SERIF}`;
+  X.fillStyle=INK;
+  line.forEach((l,i)=>X.fillText(l,CX,y+i*94));
   X.restore();
 }
 
-function textCard(lines,y,size,alpha){
-  // dark plate behind text for legibility on any footage
+/* ── grade: vignette + grain ───────────────────────────── */
+function grade(t){
+  const v=X.createRadialGradient(CX,CY-40,180,CX,CY-40,1180);
+  v.addColorStop(0,'rgba(0,0,0,0)'); v.addColorStop(1,'rgba(58,42,18,.30)');
+  X.fillStyle=v; X.fillRect(0,0,W,H);
   X.save();
-  X.globalAlpha=alpha*0.92;
-  X.textAlign='center';
-  X.font=`700 ${size}px "DejaVu Sans","Liberation Sans",system-ui,sans-serif`;
-  let maxw=0; lines.forEach(l=>maxw=Math.max(maxw,X.measureText(l).width));
-  const padX=42,padY=30;
-  const bh=lines.length*size*1.22+padY*2-size*0.22;
-  roundRect(W/2-maxw/2-padX, y-size*0.72-padY, maxw+padX*2, bh, 14);
-  X.fillStyle='rgba(28,23,17,0.90)'; X.fill();
+  X.globalCompositeOperation='overlay'; X.globalAlpha=.055;
+  X.translate(-(Math.floor(hash(Math.floor(t*30))*200)),-(Math.floor(hash(Math.floor(t*30)+5)*200)));
+  X.fillStyle=grainPat; X.fillRect(0,0,W+260,H+260);
   X.restore();
-  textBlock(lines,y,size,'#fdf8ef',alpha,700,0);
 }
 
-/* ---------- the scene ---------- */
-const DUR = 8.0;
+/* ── scene ─────────────────────────────────────────────── */
+const DUR=9.6;
 
 function renderFrame(t){
+  X.setTransform(1,0,0,1,0,0);
   X.clearRect(0,0,W,H);
-  background(t);
+  ground();
 
-  const cy = 880;
+  const brand=seg(t,7.05,7.45);
 
-  /* ---- ACT 1 (0.0–2.6): the fumble, steel spring ring ---- */
-  const a1 = seg(t,0,2.6);
-  /* ---- ACT 2 (2.6–4.2): converters slide together ---- */
-  const a2 = seg(t,2.6,4.2);
-  /* ---- SNAP at 4.2 ---- */
-  const snap = seg(t,4.2,4.55);
-  /* ---- ACT 3 settle ---- */
-  const a3 = seg(t,4.55,6.2);
-  /* ---- ACT 4 brand ---- */
-  const a4 = seg(t,6.4,8.0);
-
-  const inAct1 = t < 2.6;
-
-  if(inAct1){
-    // jittery near-miss
-    const j = (1-easeOut(seg(t,0,0.5)));
-    const wob = 26*Math.sin(t*13) + 34*nz(t*40);
-    const gap = 190 - 60*easeOut(seg(t,0.6,2.4)) ;
-    const lx = W/2-gap+wob*0.5, rx = W/2+gap-wob*0.5;
-    chain(-60, lx-40, cy, 90, 1);
-    chain(W+60, rx+40, cy, 90, -1);
-    springRing(lx, cy+wob*0.25, 1.05, 0.15+0.12*Math.sin(t*9));
-    springRing(rx, cy-wob*0.25, 1.05, 0.0);
-    const ta = easeOut(seg(t,0.25,0.9)) * (1-easeIn(seg(t,2.15,2.55)));
-    textCard(['Trying to do up','a necklace clasp.'], 1430, 74, ta);
-  } else {
-    // converters
-    const gap = 210*(1-ease(a2));
-    const lx = W/2-gap-48, rx = W/2+gap+48;
-    const recoil = snap>0 && snap<1 ? Math.sin(snap*Math.PI)*16 : 0;
-    const settle = a3>0 ? Math.exp(-a3*7)*Math.sin(a3*34)*10 : 0;
-
-    chain(-60, lx-42, cy, 90 - 18*ease(a2), 1);
-    chain(W+60, rx+42, cy, 90 - 18*ease(a2), -1);
-
-    const glow = snap>0 ? Math.sin(clamp(snap,0,1)*Math.PI)*0.9 : 0;
-    clasp(lx - recoil + settle, cy, 1, 1, glow);
-    clasp(rx + recoil - settle, cy, -1, 1, glow);
-
-    // snap flash ring
-    if(snap>0 && snap<1){
-      X.save();
-      X.globalAlpha=(1-snap)*0.75;
-      X.strokeStyle='#fff1c2'; X.lineWidth=8*(1-snap)+2;
-      X.beginPath(); X.arc(W/2, cy, 70+150*snap, 0, Math.PI*2); X.stroke();
-      X.restore();
-    }
-
-    const t2a = easeOut(seg(t,2.75,3.3)) * (1-easeIn(seg(t,4.0,4.3)));
-    textCard(['Now it closes itself.'], 1430, 78, t2a);
-
-    const t3a = easeOut(seg(t,4.7,5.2)) * (1-easeIn(seg(t,6.1,6.45)));
-    textCard(['One hand.','One second.','No mirror.'], 1360, 84, t3a);
-  }
-
-  /* brand card */
-  if(a4>0){
+  if(brand<1){
+    const cam=camera(t);
     X.save();
-    X.globalAlpha = easeOut(seg(t,6.4,6.9));
-    X.fillStyle='rgba(243,236,225,0.93)';
-    X.fillRect(0,0,W,H);
+    X.translate(CX+cam.x,CY+cam.y);
+    X.scale(cam.s,cam.s);
+    X.translate(-CX,-CY);
+
+    if(t<2.75){
+      /* ACT 1 — the fumble, three near-misses */
+      const beat=seg(t,.45,2.62);
+      const miss=Math.sin(beat*Math.PI*3.05);
+      const drift=28*miss+9*Math.sin(t*17);
+      chain(-260,CX-92,CY,54,0,t);
+      chain(W+260,CX+112,CY,54,0,t);
+      springRing(CX-58,CY+6, .16+.10*Math.sin(t*8), -0.06*Math.sin(t*5));
+      hookEnd(CX+66+drift*1.5, CY-10-drift*.5, .5+.5*Math.sin(t*6.5)+drift*.006);
+    } else {
+      /* ACT 2/3 — converters */
+      const app=eInOut(seg(t,2.95,4.42));
+      const gap=lerp(258,54,app);
+      const snap=seg(t,4.42,4.78);
+      const rip=seg(t,4.42,6.0);
+      const bounce=snap<1? Math.sin(snap*Math.PI)*20 : 0;
+      const settle=rip>0? Math.exp(-rip*5.5)*Math.sin(rip*30)*9 : 0;
+
+      chain(-260, CX-gap-66, CY, lerp(58,40,app), rip<1?rip:0, t);
+      chain(W+260, CX+gap+66, CY, lerp(58,40,app), rip<1?rip:0, t);
+
+      const glow=snap>0&&snap<1? Math.sin(snap*Math.PI)*1 : 0;
+      const spec=cl((t-2.9)*.42,0,1);
+      const lx=CX-gap+bounce-settle, rx=CX+gap-bounce+settle;
+
+      // motion blur while closing fast
+      const fast=seg(t,3.9,4.42);
+      if(fast>.25&&fast<1){
+        X.save(); X.globalAlpha=.30;
+        converter(lx-16,CY,1,0,spec); converter(rx+16,CY,-1,0,spec);
+        X.globalAlpha=.18;
+        converter(lx-30,CY,1,0,spec); converter(rx+30,CY,-1,0,spec);
+        X.restore();
+      }
+      converter(lx,CY,1,glow,spec);
+      converter(rx,CY,-1,glow,spec);
+
+      if(snap>0&&snap<1){
+        X.save(); X.globalAlpha=(1-snap)*.7;
+        X.strokeStyle='#fff3c8'; X.lineWidth=10*(1-snap)+2;
+        X.beginPath(); X.arc(CX,CY,80+210*eOut(snap),0,Math.PI*2); X.stroke();
+        X.restore();
+      }
+      sparks(snap);
+    }
     X.restore();
-    const ba=easeOut(seg(t,6.6,7.1));
-    textBlock(['EVERLY GRACE'], 900, 82, INK, ba, 700, 8);
-    textBlock(['Magnetic clasp converters'], 1010, 44, INK_SOFT, ba*0.95, 400, 1);
-    textBlock(['Set of three  ·  $29  ·  Free U.S. shipping'], 1130, 38, INK_SOFT, ba*0.9, 600, 0);
+
+    /* captions */
+    const c1=eOut(seg(t,.55,1.15))*(1-eIn(seg(t,2.35,2.72)));
+    caption('BEFORE',['The part everyone','gives up on.'],1520,c1,(1-eOut(seg(t,.55,1.15)))*26);
+
+    const c2=eOut(seg(t,3.05,3.55))*(1-eIn(seg(t,4.18,4.46)));
+    caption('AFTER',['It closes itself.'],1560,c2,(1-eOut(seg(t,3.05,3.55)))*26);
+
+    const c3=eOut(seg(t,4.95,5.5))*(1-eIn(seg(t,6.7,7.05)));
+    caption('','One hand. One second.'.split('|').concat(['No mirror.']),1500,c3,(1-eOut(seg(t,4.95,5.5)))*22);
+
+    grade(t);
   }
+
+  /* ── brand card ── */
+  if(brand>0){
+    X.save(); X.globalAlpha=brand;
+    ground();
+    X.restore();
+
+    const a=eOut(seg(t,7.35,7.95));
+    const rise=(1-a)*22;
+    X.save(); X.globalAlpha=a; X.textAlign='center';
+
+    X.strokeStyle=INK_3; X.globalAlpha=a*.45; X.lineWidth=1.4;
+    X.beginPath(); X.moveTo(CX-56,806+rise); X.lineTo(CX+56,806+rise); X.stroke();
+    X.globalAlpha=a;
+
+    X.font=`400 92px ${SERIF}`; X.letterSpacing='11px';
+    X.fillStyle=INK; X.fillText('EVERLY GRACE',CX+6,928+rise);
+    X.letterSpacing='0px';
+
+    X.font=`400 40px ${SERIF}`; X.fillStyle=INK_2;
+    X.fillText('Magnetic clasp converters',CX,1000+rise);
+
+    const b=eOut(seg(t,7.75,8.35));
+    X.globalAlpha=b;
+    X.font=`500 26px ${MONO}`; X.letterSpacing='5px'; X.fillStyle=INK_3;
+    X.fillText('SET OF THREE   ·   $29   ·   FREE U.S. SHIPPING',CX+3,1122+rise);
+    X.letterSpacing='0px';
+    X.restore();
+    grade(t);
+  }
+
+  /* fade from / to black */
+  const fin=1-eOut(seg(t,0,.45));
+  const fout=eIn(seg(t,9.2,9.6));
+  const f=Math.max(fin,fout);
+  if(f>0){X.fillStyle=`rgba(20,17,13,${f})`;X.fillRect(0,0,W,H)}
 }
-window.renderFrame = renderFrame;
-window.SCENE_DURATION = DUR;
+
+window.renderFrame=renderFrame;
+window.SCENE_DURATION=DUR;
 renderFrame(0);
 </script>
