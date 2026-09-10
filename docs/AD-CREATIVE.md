@@ -1,4 +1,10 @@
-# Creative: organic videos, ad copy, and the compliance line
+# Creative: faceless content, ad copy, and the compliance line
+
+**This brand is faceless.** No one appears on camera — no face, no hands, no
+voice. Everything below is built for that constraint, and most of it is better
+because of it.
+
+---
 
 ## The one rule that governs all of it
 
@@ -14,105 +20,189 @@ Two separate reasons, both real:
 2. It's a product liability claim you don't want and don't need. The
    functional benefit sells perfectly well on its own.
 
-You can *show* someone with visibly stiff hands. You cannot *claim* a medical
-benefit. Showing is more persuasive anyway.
+Faceless makes this easier, not harder — with no person in frame there's no
+implied "look at this sufferer" subtext for a reviewer to object to.
 
 ---
 
-## Why this product suits organic video
+## The kit
 
-The demo is eight seconds and needs no explanation. That is rare and it's the
-main reason I picked this product. Lead with the fumble — the struggle is the
-hook, the snap is the payoff.
+| Item | Cost | Notes |
+|---|---:|---|
+| Your phone | $0 | Any phone from the last five years shoots 4K |
+| **Velvet jewelry bust / display neck** | **~$10** | The one thing to buy. Search "velvet necklace display bust." |
+| A window | $0 | Side light, never overhead. Shoot mid-morning or late afternoon. |
+| A plain surface | $0 | Linen napkin, wood board, or a sheet of grey card |
+| 3–4 of your own necklaces | $0 | Vary the chain weights |
+| CapCut | $0 | Editing and auto-captions |
+| Phone tripod or a stack of books | $0–12 | Optional but it makes overhead shots far easier |
 
-**Shoot on a phone.** Vertical, 9:16. Good natural light near a window. Real
-hands — ideally not yours, if you're not the customer. Nothing polished.
-Over-produced video performs *worse* here; it reads as an ad.
+**Total: about $10.**
 
 ---
 
-## Six video scripts
+## Why faceless works better here than hands-on
 
-### 1. "The drawer" — the emotional one, best long-term potential
-> **[0–3s]** Open a drawer, lift out a tangled necklace. *"This was my mom's.
-> I haven't worn it in four years."*
-> **[3–8s]** Attempt the clasp behind the neck. Fail. Attempt again. Fail.
-> **[8–14s]** Clip the converter on. *"Ten seconds, once."*
-> **[14–20s]** Bring the ends together — snap. Hands drop. Look up.
-> **[20–24s]** *"That's it. That's the whole thing."*
+Counterintuitive, but true for this product:
 
-### 2. "Eight seconds" — the pure demo, best for cold traffic
-> **[0–2s]** Split screen. Left: fumbling with a standard clasp. Right: snap.
-> **[2–8s]** Left is still fumbling. Right is already done and walking away.
-> **[8–12s]** Text on screen: *"Same necklace. One tiny magnet."*
+1. **The magnet snap is more satisfying in macro than in a wide shot.** Two
+   halves sliding together and catching, filmed close, is the entire pitch.
+   Hands actually get in the way of seeing it.
+2. **A bust form looks like a brand.** Hands in a kitchen look like a home
+   video. This audience is buying from a stranger on the internet and is
+   reading every signal for legitimacy.
+3. **You can reshoot endlessly.** No coordinating with a person who has to be
+   available and whose nails have to look the same as last week.
+4. **It's silent by default,** which matches how ~85% of Facebook video is
+   actually watched.
 
-### 3. "The bracelet" — most underused angle, highest surprise value
-> **[0–4s]** *"Everyone gives up on bracelets. You physically cannot do a
-> clasp with one hand."*
-> **[4–10s]** Demonstrate the impossibility. It's genuinely funny.
-> **[10–16s]** Converter on. One hand. Snap. *"Okay. That's unreasonable."*
+The trust that a face would have carried has to come from somewhere else
+instead — and it does: real returns policy, a real phone number, real reviews
+once you have them, and a contact page a person actually answers. That's all
+already built into the store.
 
-### 4. "For my mother" — the gift angle, run this into Q4
-> **[0–5s]** *"My mom stopped wearing jewelry and never said why."*
-> **[5–12s]** *"It wasn't the jewelry. It was the clasp."*
-> **[12–20s]** Show her using it. Her reaction is the ad — do not script it.
-> **[20–24s]** *"Best twenty-nine dollars I've spent on her."*
+---
 
-### 5. "Don't buy this if" — the trust play, converts unusually well on this audience
-> **[0–4s]** *"Don't buy these if you wear heavy statement pieces. They'll hold,
-> but you'll want two."*
-> **[4–10s]** *"Don't buy them if you have a pacemaker — magnets, ask your doctor."*
-> **[10–18s]** *"Do buy them if there's a necklace in a drawer you've given up on."*
+## The four shot types
 
-Naming who it isn't for is the single most effective trust device with this
-demographic. It signals you aren't just trying to sell to everyone.
+Everything you post is built from these. Film all four once and you have
+months of material.
 
-### 6. "Setup, in real time" — kills the main objection
-> **[0–3s]** *"People ask if it's complicated. I'll do it in real time."*
-> **[3–15s]** Unbroken shot, no cuts, fitting the converter. Say nothing.
-> **[15–18s]** *"That's it. Never again on that necklace."*
+### Shot A — The overhead snap (your workhorse)
+Phone directly above a plain surface. Two ends of a necklace lying apart, each
+with a converter fitted. Slide them toward each other until they snap.
 
-An unbroken take is doing real work here — it proves you didn't edit out
-difficulty.
+Film it **ten times**: different chains, different distances, one in slow
+motion. This single shot carries most of your content.
+
+### Shot B — The bust close
+Necklace on the velvet bust, camera tight on the back of the neck where the
+converter sits. Fasten it. Shows the product in context without a person.
+
+### Shot C — The fumble (the hook)
+Same overhead framing, but a **standard** clasp — the tiny spring ring. Try to
+work it against the surface. It's fiddly and it looks fiddly.
+
+This is what goes first in almost every video. **The struggle is the hook.**
+
+### Shot D — Detail and scale
+Macro on one converter: the finish, the join, the size next to a coin. Slow
+pan. Useful as b-roll and doubles as your Pinterest pin images.
+
+---
+
+## Six faceless video scripts
+
+All silent, all text-on-screen, all under 20 seconds, all vertical 9:16.
+
+### 1. "The drawer" — highest long-term potential
+> **[0–3s]** Shot D, a tangled necklace on the surface.
+> Text: *"This was my mother's."*
+> **[3–7s]** Shot C, fumbling the tiny clasp.
+> Text: *"I haven't worn it in four years."*
+> **[7–12s]** Overhead, converter being clipped on.
+> Text: *"Ten seconds. Once."*
+> **[12–17s]** Shot A, the snap. Slow motion.
+> Text: *"That's it. That's the whole thing."*
+
+### 2. "Eight seconds" — best for cold traffic
+> **[0–2s]** Split screen. Left: Shot C fumbling. Right: Shot A snapping.
+> **[2–8s]** Left still fumbling. Right is already done, hand-free, still.
+> Text: *"Same necklace. One tiny magnet."*
+
+### 3. "The bracelet" — most underused angle
+> **[0–4s]** Text over Shot D: *"Nobody can do a bracelet clasp one-handed."*
+> **[4–9s]** Shot C on a bracelet. It's genuinely absurd.
+> **[9–15s]** Shot A on the bracelet. Snap.
+> Text: *"Okay. That's unreasonable."*
+
+### 4. "For my mother" — the gift angle, run into Q4
+> **[0–5s]** Shot D, jewelry laid out.
+> Text: *"My mom stopped wearing jewelry and never said why."*
+> **[5–11s]** Shot C.
+> Text: *"It wasn't the jewelry. It was the clasp."*
+> **[11–18s]** Shot B on the bust, fastening.
+> Text: *"Best $29 I've spent on her."*
+
+### 5. "Don't buy this if" — the trust play
+> **[0–4s]** Shot D. Text: *"Don't buy these if you wear heavy statement pieces."*
+> **[4–8s]** Text: *"They'll hold. But you'll want two."*
+> **[8–13s]** Text: *"Don't buy them if you have a pacemaker. Magnets. Ask your doctor."*
+> **[13–19s]** Shot A, the snap. Text: *"Do buy them if there's a necklace in a drawer you've given up on."*
+
+Naming who it *isn't* for is the single most effective trust device with this
+demographic — and it matters more for a faceless brand, which has less
+built-in credibility to spend.
+
+### 6. "Real time" — kills the main objection
+> **[0–3s]** Text: *"People ask if it's complicated."*
+> **[3–15s]** One unbroken overhead take, no cuts, fitting the converter.
+> **[15–18s]** Text: *"That's it. Never again on that necklace."*
+
+The unbroken take is doing real work: it proves nothing was edited out.
+
+---
+
+## Text-on-screen rules
+
+With no voice, the text *is* the video. Get these right:
+
+- **Big.** Fills a third of the width. Assume a 5-inch phone at arm's length
+  and eyes that are 58 years old.
+- **High contrast.** White text with a dark shadow, or a solid bar behind it.
+  Never thin text straight onto a light background.
+- **One idea per card.** Six to nine words. If it needs two lines, cut it.
+- **Hold long enough to read twice.** Roughly 0.4 seconds per word, minimum
+  2 seconds. Faceless videos fail more often from text moving too fast than
+  from anything else.
+- **First card in the first 0.5 seconds.** No logo, no intro, no build.
 
 ---
 
 ## Where to post
 
-| Channel | Cadence | Notes |
+| Channel | Cadence | Why it matters here |
 |---|---|---|
-| **Facebook Reels** | daily | Where the 50–65 audience actually is. Most underrated channel for this product. |
-| **Pinterest** | 3–5 pins/wk | Long tail. Pins drive traffic for months. Genuinely worth the effort here. |
-| **TikTok** | daily | Reach is real even at 55+, but colder and younger. Free distribution regardless. |
+| **Pinterest** | 5–8 pins/wk | **Start here.** Static images, no video needed, and the audience skews exactly right. Pins keep driving traffic for months. |
+| **Facebook Reels** | daily | Where 50–65 actually is. The most underrated channel for this product. |
 | **Instagram Reels** | daily | Cross-post from TikTok, strip the watermark. |
+| **TikTok** | daily | Colder and younger, but free reach is free reach. |
 | **Facebook Groups** | see below | Highest-converting, easiest to get banned from. |
 
-### Facebook Groups — do this correctly
-Join 10 groups around gardening, quilting, grandparenting, jewelry, arthritis
-support, caregiving. Then **participate for two full weeks without mentioning
-the product at all.** Answer questions, be a person.
+### Pinterest first — the faceless channel
+Pinterest is the best fit for a faceless brand and most people skip it.
+Make 10 static pins from Shot D and Shot B stills, each with a text overlay:
+*"The clasp fix nobody told you about."* / *"Wear the necklace in the drawer
+again."* Link every pin to the store. This costs one afternoon and keeps
+working for a year.
 
-Only after that, and only where group rules permit it, share as a genuine
-recommendation. Dropping a link on day one gets you banned from the exact
-communities that are worth the most to you.
+### Facebook Groups — do this correctly
+Join 10 groups around gardening, quilting, grandparenting, jewelry and
+caregiving. **Participate for two full weeks without mentioning the product.**
+Answer questions, be a person. Only then, and only where rules permit, share
+as a genuine recommendation.
+
+Being faceless makes this harder, not easier — you can't lean on a personal
+story you're not willing to attach a face to. So don't fake one. Recommend the
+product as what it is.
 
 ---
 
-## Paid ads — only after the organic gate is cleared
+## Paid ads — only after the organic gate
 
-See `BUSINESS-PLAN.md` §3. Gate: one organic video over 10k views or 300 saves.
+Gate: one organic video over 10k views or 300 saves. See `BUSINESS-PLAN.md` §3.
 
 **Setup:**
 - Objective: Sales. Placement: Advantage+ automatic.
 - Audience: Women, 52–68, United States. Broad — no interest stacking at first.
-- Budget: $10/day per ad set. Two ad sets maximum.
+- Budget: $10/day per ad set, two ad sets maximum.
 - Creative: the exact video that performed organically. Do not "improve" it.
-- Run 6 days minimum before judging. Meta needs ~50 events to learn.
+- Run 6 days minimum. Meta needs ~50 events to learn.
 
 **Kill rules:**
-- CPA over $35 after 6 days → kill the ad set.
-- CPA $17–35 → the creative is close. Iterate the hook, keep the body.
-- CPA under $17 → scale by 20% every 3 days. Never double overnight.
+- Over $35 CPA after 6 days → kill the ad set.
+- $17–35 → close. Iterate the hook, keep the body.
+- Under $17 → scale 20% every 3 days. Never double overnight.
 
 ### Ad copy — primary text
 > There's a necklace in your drawer you've stopped wearing. Not because you
@@ -133,18 +223,30 @@ See `BUSINESS-PLAN.md` §3. Gate: one organic video over 10k views or 300 saves.
 
 ---
 
-## Photography for the store
+## Store photography
 
-Five image slots are marked in `everlygrace/index.html`. Shoot them yourself
-with the winning sample:
+Five image slots in `everlygrace/index.html`. All achievable faceless:
 
-1. **Hero** — hands fastening at the nape of the neck. Real hands, 55+, natural light.
-2. **Set of three**, laid flat on linen or a wooden surface.
-3. **Macro** of one converter, gold finish, showing the quality of the join.
-4. **Worn** — a necklace on, converter visible at the back of the neck.
-5. **Scale** — next to a quarter, so people know how small it is.
+1. **Hero** — Shot B. Necklace on the velvet bust, converter visible at the
+   back of the neck. (The slot's comment says "hands at the nape" — ignore
+   that; use the bust.)
+2. **Set of three**, laid flat on linen.
+3. **Macro** of one converter, showing the join.
+4. **On the bust**, full necklace visible.
+5. **Scale** — next to a quarter.
 
-**Avoid:** white-background studio product shots, hand models in their
-twenties, anything that looks like the supplier's own listing photos. Using
-supplier photos is the fastest way to look like every other dropshipper, and
-this audience recognizes it.
+**Avoid:** white-background studio shots, and above all the supplier's own
+listing photos. Using those is the single clearest tell of a dropshipper and
+this audience spots it immediately.
+
+---
+
+## If you later want zero involvement
+
+Everything above still needs you to place the clasps and press record — maybe
+90 minutes, once. If you want even that removed, the route is paying UGC
+creators (Billo, Insense, Fiverr) at $50–120 per video, or seeding free sets
+to micro-influencers.
+
+That's a real model, but budget for **$800–1,500**, not $250. Revisit it at
+month 3 if the product proves out and there's margin to reinvest.

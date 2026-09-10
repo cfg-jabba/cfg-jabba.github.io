@@ -3,6 +3,9 @@
 A dropshipping storefront and operating plan for magnetic clasp converters,
 targeting U.S. women aged 50–65.
 
+**The brand is faceless** — no one appears on camera. All content is tabletop
+macro and a velvet display bust. `AD-CREATIVE.md` is written around that.
+
 ## What's in here
 
 | File | What it's for |
@@ -43,8 +46,9 @@ want a real cart with variants.
 Three things are left as marked placeholders rather than filled in, on purpose:
 
 1. **Product photography.** Five image slots in `index.html`. Shoot these
-   yourself with the winning sample — using the supplier's own listing photos
-   is the single clearest tell of a dropshipper, and this audience spots it.
+   yourself with the winning sample, on the display bust or flat-lay — using
+   the supplier's own listing photos is the single clearest tell of a
+   dropshipper, and this audience spots it.
 2. **Customer reviews.** Three placeholder slots, with a comment explaining
    why they must not be filled with invented quotes. Real ones only, via the
    day-14 email.

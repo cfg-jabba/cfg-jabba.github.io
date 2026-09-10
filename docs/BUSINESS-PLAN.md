@@ -1,5 +1,6 @@
 # Everly Grace — operating plan
 
+**Brand:** faceless — no one appears on camera, ever
 **Product:** magnetic clasp converters, 3-pack (gold / silver / rose gold)
 **Price:** $29, free U.S. shipping
 **Buyer:** women 50–65, U.S., moderate-to-good disposable income
@@ -50,12 +51,13 @@ Contribution is the constraint, not traffic. Three levers, in order of effort:
 |---|---:|---|
 | Samples from 3 suppliers | $45 | Week 1, first thing |
 | .com domain | $12 | Week 1 |
+| Velvet jewelry display bust | $10 | Week 1 — the only filming kit needed |
 | Stripe | $0 | pay-per-sale only |
 | Hosting (GitHub Pages) | $0 | already have it |
 | Formspree contact form | $0 | free tier, 50/mo |
 | Email (MailerLite free tier) | $0 | free to 1,000 subscribers |
 | Paid ad test | $60 | **Week 3, only after organic proof** |
-| **Held in reserve** | **$133** | first restock, or scaling a winner |
+| **Held in reserve** | **$123** | first restock, or scaling a winner |
 
 Deliberately not spent: Shopify ($39/mo), a logo designer, a "winning
 product" course, any ad spend before there is creative worth amplifying.
@@ -91,8 +93,11 @@ the angle is wrong, and $190 of ad spend would not have fixed it.
 ### Week 2 — proof
 - [ ] **Run the magnet tests** in `SUPPLIER-VETTING.md`. Reject failures.
 - [ ] Pick the winning supplier. Confirm blind shipping and U.S. stock **in writing.**
-- [ ] Film 6–10 videos with the winning sample. Scripts in `AD-CREATIVE.md`.
-- [ ] Post daily to TikTok, Reels, Pinterest. Join 10 relevant Facebook groups
+- [ ] Film 6–10 **faceless** videos — tabletop macro and the velvet bust, no
+      person in frame. Four shot types and six scripts in `AD-CREATIVE.md`.
+- [ ] Make 10 Pinterest pins from the same stills. Best-fit channel for a
+      faceless brand and the one most people skip.
+- [ ] Post daily to Reels, TikTok, Pinterest. Join 10 relevant Facebook groups
       and *participate* — do not post links yet, you will be removed.
 
 ### Week 3 — read the signal

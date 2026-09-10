@@ -13,6 +13,9 @@ everything above it is done.
       attribute on the checkout button. The button stays disabled until you do.
 - [ ] **Domain** — ~$12/yr. Namecheap or Cloudflare. Something warm and
       spellable over the phone.
+- [ ] **Velvet jewelry display bust** — ~$10. The only filming kit you need.
+      Search "velvet necklace display bust." Everything is shot on it or
+      flat on a table; no one appears on camera.
 - [ ] **GitHub Pages custom domain** — repo Settings → Pages → Custom domain.
 - [ ] **Google Voice** — free U.S. number for the site and for Meta.
 - [ ] **Business email** — an address at your own domain. Cloudflare Email
@@ -51,7 +54,8 @@ grep -rn "YOUR_\|\[your\|\[set this\|\[Your\|PASTE_" everlygrace/
 - [ ] All six physical tests run and scored
 - [ ] Winner chosen, blind shipping confirmed **in writing**
 - [ ] Second sample ordered from the winner (batch consistency)
-- [ ] Your own photos shot for all five image slots
+- [ ] Your own photos shot for all five image slots — faceless, on the bust
+      or flat-lay. Never the supplier's listing photos.
 
 ---
 
