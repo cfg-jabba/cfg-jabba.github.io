@@ -1,0 +1,396 @@
+"""Shared helpers: collections, tagging, level geometry and BVH building."""
+
+import math
+
+import bpy
+from mathutils import Vector
+from mathutils.bvhtree import BVHTree
+
+from .props import AUTO_RB_PROP, BOX_PROP, ROLE_PROP
+
+TOOLS_COLLECTION = "Marble Tools"
+# Sub-collections so the dev clutter can be hidden without hiding the level markers.
+SUB_COLLECTIONS = {
+    "DEV": "Marble Dev",      # arcs, traced paths, test marbles
+    "BOX": "Marble Boxes",    # spawn, game boxes, markers, cosmetics
+    "RUN": "Marble Runs",     # recorded replay ghosts
+}
+# Object names the game's level_controller.gd looks for in an imported .blend.
+SPAWN_NAME = "spawnbox"
+COSMETIC_PREFIX = "cosmetic"   # level_8.gd: lower.begins_with("cosmetic")
+GAME_BOX_NAMES = {
+    "SPAWN": "spawnbox",
+    "TIMER": "timer-box",
+    "FINISH": "finish-box",
+    "FALL": "fall-box",
+}
+GAME_NAME_TOKENS = {
+    "SPAWN": ("spawn",),
+    "TIMER": ("timer",),
+    "FINISH": ("finish",),
+    "FALL": ("fall", "death", "kill"),
+}
+GEOMETRY_TYPES = {"MESH", "CURVE", "SURFACE", "FONT", "META"}
+
+
+# --------------------------------------------------------------------------- collections
+def get_tools_collection(context, sub=None):
+    """The add-on's collection, or one of its sub-collections ('DEV'/'BOX'/'RUN')."""
+    scene = context.scene
+    root = bpy.data.collections.get(TOOLS_COLLECTION)
+    if root is None:
+        root = bpy.data.collections.new(TOOLS_COLLECTION)
+    if root.name not in scene.collection.children:
+        # It might be linked somewhere else in another scene; link here too.
+        try:
+            scene.collection.children.link(root)
+        except RuntimeError:
+            pass
+    if sub is None:
+        return root
+    name = SUB_COLLECTIONS[sub]
+    child = bpy.data.collections.get(name)
+    if child is None:
+        child = bpy.data.collections.new(name)
+    if child.name not in root.children:
+        try:
+            root.children.link(child)
+        except RuntimeError:
+            pass
+    return child
+
+
+def tool_collections():
+    """Every collection this add-on owns that currently exists."""
+    names = [TOOLS_COLLECTION] + list(SUB_COLLECTIONS.values())
+    return [c for c in (bpy.data.collections.get(n) for n in names) if c is not None]
+
+
+def set_sub_visible(sub, visible):
+    """Show or hide one sub-collection (the monitor toggle, so it also hides in renders)."""
+    coll = bpy.data.collections.get(SUB_COLLECTIONS[sub])
+    if coll is None:
+        return False
+    coll.hide_viewport = not visible
+    coll.hide_render = not visible
+    return True
+
+
+def link_to_tools(context, obj, sub="DEV"):
+    coll = get_tools_collection(context, sub)
+    for other in list(obj.users_collection):
+        if other is not coll:
+            other.objects.unlink(obj)
+    if obj.name not in coll.objects:
+        coll.objects.link(obj)
+    return obj
+
+
+def next_cosmetic_name(scene=None):
+    """cosmetic1, cosmetic2, ... - the game matches any object whose name starts with it."""
+    scene = scene or bpy.context.scene
+    used = set()
+    for obj in scene.objects:
+        lower = obj.name.lower()
+        if lower.startswith(COSMETIC_PREFIX):
+            tail = lower[len(COSMETIC_PREFIX):]
+            if tail.isdigit():
+                used.add(int(tail))
+    n = 1
+    while n in used:
+        n += 1
+    return f"{COSMETIC_PREFIX}{n}"
+
+
+def set_role(obj, role):
+    obj[ROLE_PROP] = role
+
+
+def get_role(obj):
+    try:
+        return obj.get(ROLE_PROP, "")
+    except (AttributeError, ReferenceError):
+        return ""
+
+
+def objects_with_role(role, scene=None):
+    """Objects tagged with `role`, plus untagged empties the game would wire by name."""
+    scene = scene or bpy.context.scene
+    found = [obj for obj in scene.objects if get_role(obj) == role]
+    tokens = GAME_NAME_TOKENS.get(role)
+    if tokens:
+        for obj in scene.objects:
+            if obj.type != "EMPTY" or get_role(obj) or obj in found:
+                continue
+            lower = obj.name.lower()
+            if any(tok in lower for tok in tokens):
+                found.append(obj)
+    return found
+
+
+def marker_center(marker, radius=0.0):
+    """Marble centre for a marker: the empty's origin, exactly like the game's spawn."""
+    return marker.matrix_world.translation.copy()
+
+
+def marker_radius(marker):
+    return float(marker.get("marble_tools_radius", marker.empty_display_size))
+
+
+def is_box_marker(marker):
+    return bool(marker.get(BOX_PROP, False)) or marker.empty_display_type == "CUBE"
+
+
+def marker_contains(marker, point):
+    """True when `point` is inside the marker's trigger volume (box or sphere)."""
+    if is_box_marker(marker):
+        try:
+            local = marker.matrix_world.inverted() @ point
+        except ValueError:
+            return False
+        size = marker.empty_display_size if marker.type == "EMPTY" else 1.0
+        return abs(local.x) <= size and abs(local.y) <= size and abs(local.z) <= size
+    return (point - marker_center(marker)).length <= marker_radius(marker)
+
+
+def remove_objects(objs):
+    """Delete objects and their mesh/curve data when no longer used."""
+    datas = []
+    for obj in objs:
+        if obj.data is not None:
+            datas.append(obj.data)
+        try:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        except ReferenceError:
+            pass
+    for data in datas:
+        try:
+            if data.users == 0:
+                if isinstance(data, bpy.types.Mesh):
+                    bpy.data.meshes.remove(data)
+                elif isinstance(data, bpy.types.Curve):
+                    bpy.data.curves.remove(data)
+        except ReferenceError:
+            pass
+
+
+# --------------------------------------------------------------------------- spawn
+def find_spawn(scene=None):
+    spawns = objects_with_role("SPAWN", scene)
+    if spawns:
+        return spawns[0]
+    return None
+
+
+def create_spawn(context, location):
+    """The spawnbox empty: its origin is the marble centre, +Y its launch direction."""
+    settings = context.scene.marble_tools
+    empty = bpy.data.objects.new(SPAWN_NAME, None)
+    empty.empty_display_type = "ARROWS"
+    empty.empty_display_size = max(settings.marble_radius * 2.0, 0.25)
+    empty.location = location
+    set_role(empty, "SPAWN")
+    link_to_tools(context, empty, "BOX")
+    return empty
+
+
+def create_game_box(context, kind, location, half_size):
+    """An empty named the way level_controller.gd expects, sized so Godot's zone = scale * 2."""
+    name = GAME_BOX_NAMES[kind]
+    empty = bpy.data.objects.new(name, None)
+    empty.empty_display_type = "CUBE"
+    empty.empty_display_size = 1.0
+    empty.location = location
+    empty.scale = half_size
+    empty[BOX_PROP] = True
+    set_role(empty, kind)
+    link_to_tools(context, empty, "BOX")
+    return empty
+
+
+def get_or_create_spawn(context):
+    spawn = find_spawn(context.scene)
+    if spawn is None:
+        spawn = create_spawn(context, context.scene.cursor.location.copy())
+    return spawn
+
+
+def spawn_launch_direction(spawn):
+    """Launch direction = spawn empty's local +Y axis (the green arrow)."""
+    direction = spawn.matrix_world.to_3x3() @ Vector((0.0, 1.0, 0.0))
+    if direction.length < 1e-8:
+        return Vector((0.0, 1.0, 0.0))
+    return direction.normalized()
+
+
+# --------------------------------------------------------------------------- level geometry
+def _collection_objects_recursive(coll):
+    seen = set()
+    result = []
+
+    def walk(c):
+        for obj in c.objects:
+            if obj.name not in seen:
+                seen.add(obj.name)
+                result.append(obj)
+        for child in c.children:
+            walk(child)
+
+    walk(coll)
+    return result
+
+
+def get_level_objects(context):
+    """Geometry objects that make up the level (never our own generated objects)."""
+    settings = context.scene.marble_tools
+    if settings.level_collection is not None:
+        candidates = _collection_objects_recursive(settings.level_collection)
+    else:
+        candidates = list(context.scene.objects)
+
+    tools = tool_collections()
+    level = []
+    for obj in candidates:
+        if obj.type not in GEOMETRY_TYPES:
+            continue
+        if get_role(obj):
+            continue
+        if any(obj.name in coll.objects for coll in tools):
+            continue
+        if settings.level_collection is None:
+            # Skip hidden objects when we are guessing the level from the whole scene.
+            try:
+                if not obj.visible_get(view_layer=context.view_layer):
+                    continue
+            except (TypeError, RuntimeError):
+                pass
+        level.append(obj)
+    return level
+
+
+def build_level_bvh(context, objects=None):
+    """Build one world-space BVHTree from all level geometry (modifiers applied).
+
+    Returns (bvh, triangle_count). bvh is None when the level has no geometry.
+    """
+    if objects is None:
+        objects = get_level_objects(context)
+    depsgraph = context.evaluated_depsgraph_get()
+
+    verts = []
+    polys = []
+    offset = 0
+    for obj in objects:
+        eval_obj = obj.evaluated_get(depsgraph)
+        try:
+            mesh = eval_obj.to_mesh()
+        except RuntimeError:
+            continue
+        if mesh is None:
+            continue
+        try:
+            if len(mesh.vertices) == 0 or len(mesh.polygons) == 0:
+                continue
+            mat = eval_obj.matrix_world
+            try:
+                import numpy as np
+
+                count = len(mesh.vertices)
+                buf = np.empty(count * 3, dtype=np.float32)
+                mesh.vertices.foreach_get("co", buf)
+                co = buf.reshape(count, 3).astype(np.float64)
+                m = np.array(mat.to_3x3(), dtype=np.float64)
+                t = np.array(mat.translation, dtype=np.float64)
+                world = co @ m.T + t
+                verts.extend(map(tuple, world))
+            except ImportError:  # pragma: no cover - numpy ships with Blender
+                verts.extend((mat @ v.co)[:] for v in mesh.vertices)
+            for poly in mesh.polygons:
+                polys.append([i + offset for i in poly.vertices])
+            offset += len(mesh.vertices)
+        finally:
+            eval_obj.to_mesh_clear()
+
+    if not polys:
+        return None, 0
+    bvh = BVHTree.FromPolygons(verts, polys, all_triangles=False, epsilon=0.0)
+    return bvh, len(polys)
+
+
+def level_bounds(context, objects=None):
+    if objects is None:
+        objects = get_level_objects(context)
+    lo = Vector((math.inf,) * 3)
+    hi = Vector((-math.inf,) * 3)
+    found = False
+    for obj in objects:
+        for corner in obj.bound_box:
+            world = obj.matrix_world @ Vector(corner)
+            for i in range(3):
+                lo[i] = min(lo[i], world[i])
+                hi[i] = max(hi[i], world[i])
+            found = True
+    if not found:
+        return None, None
+    return lo, hi
+
+
+# --------------------------------------------------------------------------- curves
+def make_path_curve(context, name, points, radius=0.05, color=(1.0, 0.3, 0.1, 1.0), role="PATH"):
+    """Create a poly curve object through `points` (list of Vector)."""
+    curve = bpy.data.curves.new(name, type="CURVE")
+    curve.dimensions = "3D"
+    curve.bevel_depth = radius
+    curve.bevel_resolution = 2
+    spline = curve.splines.new("POLY")
+    spline.points.add(len(points) - 1)
+    for i, p in enumerate(points):
+        spline.points[i].co = (p.x, p.y, p.z, 1.0)
+    obj = bpy.data.objects.new(name, curve)
+    obj.color = color
+    mat = get_material(name.split(" ")[0] + " Path", color)
+    curve.materials.append(mat)
+    set_role(obj, role)
+    link_to_tools(context, obj, "DEV")
+    return obj
+
+
+def get_material(name, color):
+    mat = bpy.data.materials.get(name)
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+        mat.diffuse_color = color
+        mat.use_nodes = True
+        bsdf = mat.node_tree.nodes.get("Principled BSDF")
+        if bsdf is not None:
+            bsdf.inputs["Base Color"].default_value = color
+            if "Emission Color" in bsdf.inputs:
+                bsdf.inputs["Emission Color"].default_value = color
+                bsdf.inputs["Emission Strength"].default_value = 0.5
+    return mat
+
+
+def make_marble_mesh(name, radius, color=(0.1, 0.6, 1.0, 1.0)):
+    """A UV sphere mesh object (no rigid body yet)."""
+    import bmesh
+
+    mesh = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=radius)
+    bm.to_mesh(mesh)
+    bm.free()
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    obj = bpy.data.objects.new(name, mesh)
+    obj.color = color
+    mesh.materials.append(get_material("Marble Ball", color))
+    set_role(obj, "MARBLE")
+    return obj
+
+
+def fmt(value, digits=2):
+    return f"{value:.{digits}f}"
+
+
+def has_auto_rb(obj):
+    return bool(obj.get(AUTO_RB_PROP, False))
