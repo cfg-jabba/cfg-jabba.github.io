@@ -4,7 +4,7 @@ import textwrap
 
 import bpy
 
-from . import utils
+from . import runs, utils
 from .props import get_settings
 
 
@@ -33,6 +33,23 @@ class MARBLE_PT_setup(MarblePanelMixin, bpy.types.Panel):
     def draw(self, context):
         s = get_settings(context)
         layout = self.layout
+
+        row = layout.row(align=True)
+        row.prop(s, "show_dev", toggle=True,
+                 icon="HIDE_OFF" if s.show_dev else "HIDE_ON")
+        sub = row.row(align=True)
+        sub.active = s.show_dev
+        sub.prop(s, "show_dev_arcs", text="", icon="IPO_EASE_IN_OUT", toggle=True)
+        sub.prop(s, "show_dev_boxes", text="", icon="MESH_CUBE", toggle=True)
+        sub.prop(s, "show_dev_runs", text="", icon="TRACKING_BACKWARDS", toggle=True)
+
+        if s.is_playing:
+            # The sidebar redraws with the viewport while playing, so keep it cheap:
+            # no scanning the scene for the spawn sixty times a second.
+            box = layout.box()
+            box.label(text="Playing - Esc in the viewport to stop", icon="PLAY")
+            return
+
         col = layout.column(align=True)
         col.prop(s, "level_collection")
         row = col.row(align=True)
@@ -73,7 +90,11 @@ class MARBLE_PT_quickstart(MarblePanelMixin, bpy.types.Panel):
             "    rigid-body marble roll from the spawn.",
             "5. Playtest > Play Level, then WASD + Space.",
             "    Esc stops. Your route is left as a curve.",
-            "6. Sync from Godot Project keeps the physics",
+            "6. Replays: every run is saved as a ghost.",
+            "    Watch them back on the timeline.",
+            "7. Ramp Lab: mark a ramp face to see how far",
+            "    it throws you. Marble Limits sizes gaps.",
+            "8. Sync from Godot Project keeps the physics",
             "    identical to player.gd.",
         )
         for line in steps:
@@ -148,10 +169,60 @@ class MARBLE_PT_play(MarblePanelMixin, bpy.types.Panel):
         row = col.row(align=True)
         row.prop(s, "mouse_look", toggle=True)
         row.prop(s, "mouse_sensitivity", text="Sens")
+        col = layout.column(align=True)
+        col.label(text="Performance")
+        col.prop(s, "fast_draw", toggle=True)
+        col.prop(s, "render_hz")
+        row = col.row(align=True)
+        row.prop(s, "show_hud", toggle=True)
+        row.prop(s, "show_trail", toggle=True)
+
         row = layout.row(align=True)
         row.prop(s, "record_play_path", toggle=True)
         row.prop(s, "restore_view", toggle=True)
         layout.operator("marble.clear_play", icon="TRASH")
+
+
+class MARBLE_PT_runs(MarblePanelMixin, bpy.types.Panel):
+    bl_label = "Replays"
+    bl_idname = "MARBLE_PT_runs"
+    bl_parent_id = "MARBLE_PT_play"
+
+    def draw(self, context):
+        s = get_settings(context)
+        layout = self.layout
+        row = layout.row(align=True)
+        row.prop(s, "record_runs", toggle=True)
+        row.prop(s, "keep_runs")
+        if s.is_playing:
+            layout.label(text="Recording...", icon="REC")
+            return
+
+        recorded = runs.all_runs(context.scene)
+        row = layout.row(align=True)
+        row.scale_y = 1.3
+        row.enabled = bool(recorded)
+        row.operator("marble.play_runs", icon="PLAY")
+        row = layout.row(align=True)
+        row.prop(s, "align_runs", toggle=True)
+        row.operator("marble.realign_runs", text="Apply", icon="FILE_REFRESH")
+
+        if not recorded:
+            layout.label(text="Play the level to record a run", icon="INFO")
+            return
+        box = layout.box()
+        col = box.column(align=True)
+        for run in recorded:
+            row = col.row(align=True)
+            icon = "SOLO_ON" if run.get(runs.RUN_FINISHED) else "DOT"
+            label = run.name
+            deaths = run.get(runs.RUN_DEATHS, 0)
+            if deaths:
+                label += f"  x{deaths}"
+            row.label(text=label, icon=icon)
+            row.operator("marble.solo_run", text="", icon="HIDE_OFF").name = run.name
+            row.operator("marble.delete_run", text="", icon="X").name = run.name
+        layout.operator("marble.clear_runs", icon="TRASH")
 
 
 class MARBLE_PT_physics(MarblePanelMixin, bpy.types.Panel):
@@ -220,7 +291,10 @@ class MARBLE_PT_design(MarblePanelMixin, bpy.types.Panel):
         row = col.row(align=True)
         row.operator("marble.add_game_box", text="Finish", icon="SOLO_ON").kind = "FINISH"
         row.operator("marble.add_game_box", text="Fall", icon="TRIA_DOWN_BAR").kind = "FALL"
+        row = col.row(align=True)
+        row.operator("marble.add_cosmetic", text="Cosmetic", icon="SHADERFX")
         col.prop(s, "box_size")
+        col.prop(s, "cosmetic_height")
 
         col = layout.column(align=True)
         col.label(text="Markers (at 3D cursor)")
@@ -241,10 +315,24 @@ class MARBLE_PT_design(MarblePanelMixin, bpy.types.Panel):
         col.operator("marble.clear_design", icon="TRASH")
 
         col = layout.column(align=True)
+        col.label(text="Ramp Lab")
+        col.operator("marble.mark_ramp", icon="CON_TRACKTO")
+        row = col.row(align=True)
+        row.prop(s, "ramp_min_speed")
+        row.prop(s, "ramp_max_speed")
+        col.prop(s, "ramp_speed_steps")
+        row = col.row(align=True)
+        row.operator("marble.analyse_ramps", text="Re-fly", icon="FILE_REFRESH")
+        row.operator("marble.clear_ramps", text="Clear", icon="TRASH")
+        draw_result(layout, s.ramp_result)
+
+        col = layout.column(align=True)
         col.label(text="Inspect")
         row = col.row(align=True)
         row.operator("marble.ramp_info", icon="MOD_SIMPLIFY")
         row.operator("marble.level_stats", icon="INFO")
+        col.operator("marble.marble_limits", icon="ARROW_LEFTRIGHT")
+        draw_result(layout, s.limits_result)
         draw_result(layout, s.design_result)
 
         col = layout.column(align=True)
@@ -261,6 +349,7 @@ CLASSES = (
     MARBLE_PT_quickstart,
     MARBLE_PT_drop,
     MARBLE_PT_play,
+    MARBLE_PT_runs,
     MARBLE_PT_physics,
     MARBLE_PT_design,
 )

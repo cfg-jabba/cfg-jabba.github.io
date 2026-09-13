@@ -82,9 +82,20 @@ PRESETS = {
 }
 
 # Custom property names used to tag generated / tagged objects.
-ROLE_PROP = "marble_tools_role"          # SPAWN, MARBLE, PATH, CHECKPOINT, FINISH, FALL, TIMER, ARC, TARGET
+# Roles: SPAWN MARBLE PATH CHECKPOINT FINISH FALL TIMER ARC TARGET COSMETIC RAMP RUN
+ROLE_PROP = "marble_tools_role"
 AUTO_RB_PROP = "marble_tools_auto_rb"    # True on level objects we gave a passive rigid body
 BOX_PROP = "marble_tools_box"            # True on box-shaped zones (Godot: size = scale * 2)
+
+
+def _update_dev_visibility(self, context):
+    """Master + per-group toggles for everything the add-on generates."""
+    from . import utils
+
+    master = self.show_dev
+    utils.set_sub_visible("DEV", master and self.show_dev_arcs)
+    utils.set_sub_visible("BOX", master and self.show_dev_boxes)
+    utils.set_sub_visible("RUN", master and self.show_dev_runs)
 
 
 class MarbleToolsSettings(bpy.types.PropertyGroup):
@@ -111,6 +122,25 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
         name="Preset",
         items=[(key, val["label"], "") for key, val in PRESETS.items()],
         default="MARBLE_ALLSTARS",
+    )
+
+    # ------------------------------------------------------------- dev display
+    show_dev: BoolProperty(
+        name="Dev Tools", default=True, update=_update_dev_visibility,
+        description="Master switch for everything this add-on generates. Turn it off to see the "
+                    "level exactly as it will ship",
+    )
+    show_dev_arcs: BoolProperty(
+        name="Arcs & Paths", default=True, update=_update_dev_visibility,
+        description="Jump arcs, ramp trajectories and traced drop / play paths",
+    )
+    show_dev_boxes: BoolProperty(
+        name="Boxes & Markers", default=True, update=_update_dev_visibility,
+        description="Spawn, timer / finish / fall boxes, checkpoints, cosmetics",
+    )
+    show_dev_runs: BoolProperty(
+        name="Replays", default=True, update=_update_dev_visibility,
+        description="Recorded run ghosts",
     )
 
     # ------------------------------------------------------------ drop tester
@@ -269,9 +299,43 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
         description="Rotate the camera with the mouse (Q/E and arrow keys always work too)",
     )
     mouse_sensitivity: FloatProperty(name="Mouse Sensitivity", default=GAME["mouse_sensitivity"], min=0.01, max=2.0)
+    # --- performance
+    fast_draw: BoolProperty(
+        name="Fast Draw", default=True,
+        description="Draw the marble straight to the viewport instead of moving a real object. "
+                    "Avoids a dependency-graph update every frame, which is what makes play mode "
+                    "lag on a heavy level. Turn off only if you want the marble's material",
+    )
+    render_hz: IntProperty(
+        name="Redraw Hz", default=60, min=15, max=144,
+        description="How often the viewport is redrawn while playing. Physics always runs at "
+                    "Physics Hz; lowering this trades smoothness for speed on a heavy level",
+    )
+    show_hud: BoolProperty(
+        name="HUD", default=True,
+        description="Draw speed, timer and controls over the viewport while playing",
+    )
+    show_trail: BoolProperty(
+        name="Live Trail", default=True,
+        description="Draw the route behind the marble while playing",
+    )
+
     record_play_path: BoolProperty(
         name="Record Path", default=True,
         description="Create a curve of the route you drove after leaving play mode",
+    )
+    record_runs: BoolProperty(
+        name="Record Replays", default=True,
+        description="Save each run as a keyframed ghost marble you can play back on the timeline",
+    )
+    keep_runs: IntProperty(
+        name="Keep Runs", default=8, min=1, max=64,
+        description="How many recorded runs to keep. The oldest is dropped past this",
+    )
+    align_runs: BoolProperty(
+        name="Race Ghosts", default=True,
+        description="Start every replay at the same frame so your attempts race each other. "
+                    "Off puts them back to back on the timeline",
     )
     restore_view: BoolProperty(
         name="Restore View On Exit", default=True,
@@ -294,6 +358,27 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
         name="Box Size", default=4.0, min=0.5, soft_max=50.0, unit="LENGTH",
         description="Edge length of new timer / finish boxes (Godot reads size = scale x 2)",
     )
+    cosmetic_height: FloatProperty(
+        name="Cosmetic Height", default=1.0, min=0.0, soft_max=10.0, unit="LENGTH",
+        description="How far above the 3D cursor a new cosmetic anchor floats",
+    )
+
+    # --- ramp lab
+    ramp_min_speed: FloatProperty(
+        name="From", default=6.0, min=0.1, soft_max=60.0,
+        description="Slowest entry speed tested when analysing a ramp",
+    )
+    ramp_max_speed: FloatProperty(
+        name="To", default=16.0, min=0.1, soft_max=60.0,
+        description="Fastest entry speed tested. Above Max Input Speed you only get there off a "
+                    "downhill or a boost pad",
+    )
+    ramp_speed_steps: IntProperty(
+        name="Steps", default=5, min=1, max=12,
+        description="How many entry speeds to test across the range",
+    )
+    ramp_result: StringProperty(name="Ramp", default="")
+    limits_result: StringProperty(name="Limits", default="")
     design_result: StringProperty(name="Result", default="")
     sync_result: StringProperty(name="Sync", default="")
 

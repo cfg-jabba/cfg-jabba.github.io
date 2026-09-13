@@ -21,7 +21,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 import marble_allstars_tools as addon  # noqa: E402
-from marble_allstars_tools import level_tools, playtest, props, utils  # noqa: E402
+from marble_allstars_tools import (level_tools, playtest, props, ramp_tools,  # noqa: E402
+                                   runs, utils)
 
 
 def check(cond, msg):
@@ -417,6 +418,137 @@ def test_godot_sync():
     check(abs(s.gravity - 19.6) < 1e-6 and abs(s.accel - 40 / 1.85) < 1e-6, f"sync operator: {s.sync_result}")
 
 
+def test_cosmetics():
+    print("[cosmetics]")
+    ctx = bpy.context
+    ctx.scene.cursor.location = (2.0, 2.0, 0.0)
+    bpy.ops.marble.add_cosmetic()
+    bpy.ops.marble.add_cosmetic()
+    names = sorted(o.name for o in utils.objects_with_role("COSMETIC"))
+    check(names == ["cosmetic1", "cosmetic2"], f"cosmetics auto-number: {names}")
+    first = bpy.data.objects["cosmetic1"]
+    check(abs(first.location.z - ctx.scene.marble_tools.cosmetic_height) < 1e-6,
+          "cosmetic floats above the cursor")
+    utils.remove_objects([bpy.data.objects["cosmetic1"]])
+    bpy.ops.marble.add_cosmetic()
+    check("cosmetic1" in bpy.data.objects, "the freed number is reused")
+
+
+def test_dev_toggle():
+    print("[dev toggle]")
+    s = bpy.context.scene.marble_tools
+    dev = bpy.data.collections.get(utils.SUB_COLLECTIONS["DEV"])
+    boxes = bpy.data.collections.get(utils.SUB_COLLECTIONS["BOX"])
+    check(dev is not None and boxes is not None, "dev and box sub-collections exist")
+    s.show_dev = False
+    check(dev.hide_viewport and boxes.hide_viewport, "master toggle hides everything")
+    s.show_dev = True
+    check(not dev.hide_viewport and not boxes.hide_viewport, "master toggle shows everything")
+    s.show_dev_arcs = False
+    check(dev.hide_viewport and not boxes.hide_viewport, "arcs hide without hiding boxes")
+    s.show_dev_arcs = True
+    # The level must not pick up our own objects whichever collection they live in.
+    level = {o.name for o in utils.get_level_objects(bpy.context)}
+    check(level == {"Floor", "Ramp", "Landing", "Wall"}, f"level geometry unaffected: {sorted(level)}")
+
+
+def test_ramp_lab():
+    print("[ramp lab]")
+    ctx = bpy.context
+    s = ctx.scene.marble_tools
+    ramp = bpy.data.objects["Ramp"]
+    for obj in ctx.selected_objects:
+        obj.select_set(False)
+    ctx.view_layer.objects.active = ramp
+    s.ramp_min_speed = 8.0
+    s.ramp_max_speed = 16.0
+    s.ramp_speed_steps = 3
+    bpy.ops.marble.mark_ramp()
+    markers = utils.objects_with_role("RAMP")
+    check(len(markers) == 1, "ramp marker created")
+    marker = markers[0]
+    up = Vector(marker[ramp_tools.RAMP_UP])
+    check(up.y > 0.2 and up.z > 0.1, f"up-slope points up the ramp {tuple(round(c, 2) for c in up)}")
+    check(abs(marker["marble_ramp_slope"] - 20.0) < 1.0, "slope read as 20 degrees")
+    print("   ", s.ramp_result.replace("\n", " || "))
+    check("Max jump" in s.ramp_result, "ramp report has a max jump line")
+    arcs = [o for o in ctx.scene.objects if o.name.startswith(ramp_tools.RAMP_ARC_NAME)]
+    check(len(arcs) == 3, f"one trajectory per tested speed ({len(arcs)})")
+    exits = [float(v) for v in re.findall(r"in, +([\d.]+) out", s.ramp_result)]
+    check(len(exits) == 3 and all(abs(v - s.max_speed) < 2.0 for v in exits),
+          f"holding forward pulls every approach to the input cap: {exits}")
+    before = float(re.search(r"Max jump ([\d.]+) m", s.ramp_result).group(1))
+    s.max_speed = 20.0
+    bpy.ops.marble.analyse_ramps()
+    after = float(re.search(r"Max jump ([\d.]+) m", s.ramp_result).group(1))
+    check(after > before + 1.0,
+          f"a higher speed cap throws the marble further ({before:.1f} -> {after:.1f} m)")
+    s.max_speed = props.GAME["max_speed"]
+
+    bpy.ops.marble.clear_ramps()
+    check(not utils.objects_with_role("RAMP"), "ramp markers cleared")
+    check(not [o for o in ctx.scene.objects if o.name.startswith(ramp_tools.RAMP_ARC_NAME)],
+          "ramp arcs cleared")
+
+
+def test_limits():
+    print("[marble limits]")
+    ctx = bpy.context
+    s = ctx.scene.marble_tools
+    params = playtest.params_from_settings(s)
+    limits = ramp_tools.marble_limits(params, s.marble_radius)
+    print("   ", {k: round(v, 2) for k, v in limits.items()})
+    check(abs(limits["top_speed"] - s.max_speed) < 1.5, "top speed lands near MAX_SPEED")
+    check(1.5 < limits["standing_height"] < 4.0, "standing jump height is sane")
+    check(limits["run_height"] > limits["standing_height"], "the momentum bonus jumps higher")
+    check(limits["run_distance"] > 5.0, "running jump clears a real gap")
+    bpy.ops.marble.marble_limits()
+    check("Running jump" in s.limits_result, f"limits report: {s.limits_result}")
+    reach = [o for o in ctx.scene.objects if o.name.startswith(ramp_tools.REACH_NAME)]
+    check(len(reach) == 1, "reach arc drawn from the spawn")
+    utils.remove_objects(reach)
+
+
+def test_replays():
+    print("[replays]")
+    ctx = bpy.context
+    scene = ctx.scene
+    s = scene.marble_tools
+    s.align_runs = True
+    from mathutils import Quaternion
+
+    def fake(n, step=0.2):
+        return [(Vector((0.0, i * step, 0.5)), Quaternion()) for i in range(n)]
+
+    first = runs.bake_run(ctx, fake(40), {"time": 1.6, "deaths": 0, "finished": True, "max_speed": 9.0})
+    check(first is not None and utils.get_role(first) == "RUN", "run baked as a ghost")
+    curves = runs.action_fcurves(first)
+    check(len(curves) == 7, f"location + quaternion curves ({len(curves)})")
+    counts = {len(c.keyframe_points) for c in curves}
+    check(counts == {40}, f"every curve holds one key per sample ({counts})")
+    lo, hi = runs.run_frame_range(first)
+    check(lo == scene.frame_start and hi == scene.frame_start + 39, f"frames {lo}..{hi}")
+    check(scene.frame_end >= hi, "scene frame range covers the run")
+
+    second = runs.bake_run(ctx, fake(30), {"time": 1.2, "deaths": 2, "finished": False, "max_speed": 7.0})
+    check(runs.run_frame_range(second)[0] == scene.frame_start, "race ghosts start together")
+    check("DNF" in second.name, f"unfinished run is labelled: {second.name}")
+
+    s.align_runs = False
+    bpy.ops.marble.realign_runs()
+    check(runs.run_frame_range(second)[0] > runs.run_frame_range(first)[1],
+          "back to back puts the second run after the first")
+    s.align_runs = True
+    bpy.ops.marble.realign_runs()
+    check(runs.run_frame_range(second)[0] == scene.frame_start, "re-aligned back to racing")
+
+    s.keep_runs = 2
+    runs.bake_run(ctx, fake(20), {"time": 0.8, "deaths": 0, "finished": True, "max_speed": 6.0})
+    check(len(runs.all_runs(scene)) == 2, "oldest run dropped past Keep Runs")
+    bpy.ops.marble.clear_runs()
+    check(not runs.all_runs(scene), "replays cleared")
+
+
 def main():
     build_level()
     addon.register()
@@ -427,6 +559,11 @@ def main():
         test_physics()
         test_design()
         test_godot_sync()
+        test_cosmetics()
+        test_dev_toggle()
+        test_ramp_lab()
+        test_limits()
+        test_replays()
         out = os.path.join(HERE, "demo_level.blend")
         bpy.ops.wm.save_as_mainfile(filepath=out)
         print("saved", out)

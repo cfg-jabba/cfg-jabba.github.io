@@ -28,11 +28,12 @@ import traceback
 import bpy
 from mathutils import Euler, Quaternion, Vector
 
-from . import utils
+from . import overlay, runs, utils
 from .props import get_settings
 
 MARBLE_NAME = "Marble (play)"
 PATH_NAME = "Play Path"
+MAX_RUN_SAMPLES = 20000
 UP = Vector((0.0, 0.0, 1.0))
 DOWN = Vector((0.0, 0.0, -1.0))
 MOVE_KEYS = {
@@ -61,6 +62,7 @@ class MarblePhysics:
         self.rot = Quaternion()
         self.omega = Vector((0.0, 0.0, 0.0))
         self.on_ground = False
+        self.touched_ground = False
         self.ground_normal = UP.copy()
         self.time_since_grounded = 999.0
         self.jump_buffer = -1.0
@@ -78,6 +80,7 @@ class MarblePhysics:
         self.vel = Vector((0.0, 0.0, 0.0))
         self.omega = Vector((0.0, 0.0, 0.0))
         self.on_ground = False
+        self.touched_ground = False
         self.time_since_grounded = 999.0
         self.jump_buffer = -1.0
         self.jump_released = True
@@ -95,8 +98,13 @@ class MarblePhysics:
         substeps = max(1, int(self.p.get("substeps", 4)))
         sub_dt = dt / substeps
         status = None
+        self.touched_ground = False
         for _ in range(substeps):
             result = self._substep(sub_dt, move_dir, jump_held)
+            if self.on_ground:
+                # A bouncy landing can leave the final substep airborne again, so
+                # remember the touch rather than only reporting the end state.
+                self.touched_ground = True
             if result:
                 status = result
         return status
@@ -278,6 +286,28 @@ def params_from_settings(settings):
     return params
 
 
+def marker_probe(marker):
+    """Freeze a marker's trigger volume so the play loop never inverts a matrix."""
+    if utils.is_box_marker(marker):
+        try:
+            inverted = marker.matrix_world.inverted()
+        except ValueError:
+            return None
+        size = marker.empty_display_size if marker.type == "EMPTY" else 1.0
+        return ("BOX", inverted, size)
+    return ("SPHERE", utils.marker_center(marker), utils.marker_radius(marker))
+
+
+def probe_hit(probe, point):
+    if probe is None:
+        return False
+    if probe[0] == "BOX":
+        local = probe[1] @ point
+        size = probe[2]
+        return abs(local.x) <= size and abs(local.y) <= size and abs(local.z) <= size
+    return (point - probe[1]).length <= probe[2]
+
+
 def camera_rotation(yaw, pitch_deg):
     return Euler((math.radians(90.0 + pitch_deg), 0.0, yaw), "XYZ").to_quaternion()
 
@@ -318,6 +348,7 @@ class MARBLE_OT_playtest(bpy.types.Operator):
             self.report({"ERROR"}, "Start play mode from a 3D viewport")
             return {"CANCELLED"}
         self._done = False
+        self.overlay = None
 
         bvh, tri_count = utils.build_level_bvh(context)
         if bvh is None:
@@ -342,15 +373,25 @@ class MARBLE_OT_playtest(bpy.types.Operator):
         self.phys = MarblePhysics(bvh, self.radius, params_from_settings(settings))
         self.phys.reset(self.start_pos)
 
-        self.marble = self._get_marble(context)
-        self.marble.rotation_mode = "QUATERNION"
-        self._sync_marble()
+        # Fast draw paints the marble straight into the viewport. Moving a real
+        # object instead tags the depsgraph every frame, which is the expensive part.
+        self.fast_draw = settings.fast_draw and overlay.available()
+        self.marble = None
+        if self.fast_draw:
+            utils.remove_objects([o for o in utils.objects_with_role("MARBLE", context.scene)
+                                  if o.name.startswith(MARBLE_NAME)])
+        else:
+            self.marble = self._get_marble(context)
+            self.marble.rotation_mode = "QUATERNION"
+            self._sync_marble()
 
         scene = context.scene
-        self.checkpoints = utils.objects_with_role("CHECKPOINT", scene)
-        self.finishes = utils.objects_with_role("FINISH", scene)
-        self.fall_boxes = utils.objects_with_role("FALL", scene)
-        self.timer_boxes = utils.objects_with_role("TIMER", scene)
+        self.checkpoints = [(o.name, marker_probe(o)) for o in utils.objects_with_role("CHECKPOINT", scene)]
+        self.finishes = [marker_probe(o) for o in utils.objects_with_role("FINISH", scene)]
+        self.fall_boxes = [marker_probe(o) for o in utils.objects_with_role("FALL", scene)]
+        self.timer_boxes = [marker_probe(o) for o in utils.objects_with_role("TIMER", scene)]
+        self.checkpoint_spawn = {name: utils.marker_center(bpy.data.objects[name])
+                                 for name, _p in self.checkpoints if name in bpy.data.objects}
         self.checkpoint_hit = set()
         self.timer_running = not self.timer_boxes
         self.finish_time = None
@@ -360,6 +401,14 @@ class MARBLE_OT_playtest(bpy.types.Operator):
         self.path = [self.start_pos.copy()]
         self.keys = set()
         self.status = "" if self.timer_running else "Timer starts at the timer-box"
+
+        fps = scene.render.fps / scene.render.fps_base
+        self.sample_dt = 1.0 / fps
+        self.sample_accum = 0.0
+        self.run_samples = []
+        self.draw_count = 0
+        self.draw_fps = 0.0
+        self._fps_time = time.perf_counter()
 
         self.area = context.area
         self.region = region
@@ -376,6 +425,22 @@ class MARBLE_OT_playtest(bpy.types.Operator):
         self.last_time = time.perf_counter()
         self.accum = 0.0
         self.dt = 1.0 / settings.physics_hz
+        self.redraw_dt = 1.0 / max(1, settings.render_hz)
+        self.next_redraw = 0.0
+
+        self.overlay = None
+        if self.fast_draw:
+            state = overlay.OverlayState(self.radius)
+            state.show_hud = settings.show_hud
+            state.show_trail = settings.show_trail
+            state.set_transform(self.phys.pos, self.phys.rot)
+            if overlay.enable(state):
+                self.overlay = state
+            else:
+                self.fast_draw = False
+                self.marble = self._get_marble(context)
+                self.marble.rotation_mode = "QUATERNION"
+                self._sync_marble()
 
         wm = context.window_manager
         self._timer = wm.event_timer_add(self.dt, window=context.window)
@@ -495,8 +560,10 @@ class MARBLE_OT_playtest(bpy.types.Operator):
         jump_held = "SPACE" in keys
 
         stepped = False
-        while self.accum >= self.dt:
+        steps = 0
+        while self.accum >= self.dt and steps < 8:
             self.accum -= self.dt
+            steps += 1
             if self.timer_running and self.finish_time is None:
                 self.run_time += self.dt
             self.tick_count += 1
@@ -510,15 +577,31 @@ class MARBLE_OT_playtest(bpy.types.Operator):
                 self._check_markers()
             if settings.record_play_path and self.tick_count % 3 == 0 and len(self.path) < MAX_PATH_POINTS:
                 self.path.append(self.phys.pos.copy())
+            self.sample_accum += self.dt
+            if self.sample_accum >= self.sample_dt:
+                self.sample_accum -= self.sample_dt
+                if settings.record_runs and len(self.run_samples) < MAX_RUN_SAMPLES:
+                    self.run_samples.append((self.phys.pos.copy(), self.phys.rot.copy()))
+        if steps >= 8:
+            self.accum = 0.0   # we are behind; drop the backlog instead of spiralling
 
         if stepped:
             self._sync_marble()
-            self._update_view(frame_time)
-            self._hud(context)
+            self.next_redraw -= frame_time
+            if self.next_redraw <= 0.0:
+                self.next_redraw = self.redraw_dt
+                self._update_view(frame_time)
+                self._hud(context)
+                self.draw_count += 1
+                span = now - self._fps_time
+                if span >= 0.5:
+                    self.draw_fps = self.draw_count / span
+                    self.draw_count = 0
+                    self._fps_time = now
 
-    def _in_any(self, markers):
+    def _in_any(self, probes):
         pos = self.phys.pos
-        return any(utils.marker_contains(m, pos) for m in markers)
+        return any(probe_hit(p, pos) for p in probes)
 
     def _check_markers(self):
         pos = self.phys.pos
@@ -526,13 +609,13 @@ class MARBLE_OT_playtest(bpy.types.Operator):
             self.timer_running = True
             self.run_time = 0.0
             self.status = "Timer started"
-        for cp in self.checkpoints:
-            if cp.name in self.checkpoint_hit:
+        for name, probe in self.checkpoints:
+            if name in self.checkpoint_hit:
                 continue
-            if utils.marker_contains(cp, pos):
-                self.checkpoint_hit.add(cp.name)
-                self.respawn_pos = utils.marker_center(cp, self.radius)
-                self.status = f"Checkpoint: {cp.name}"
+            if probe_hit(probe, pos):
+                self.checkpoint_hit.add(name)
+                self.respawn_pos = self.checkpoint_spawn.get(name, self.respawn_pos)
+                self.status = f"Checkpoint: {name}"
         if self.finish_time is None and self._in_any(self.finishes):
             self.finish_time = self.run_time
             self.status = f"FINISH in {self.finish_time:.2f}s"
@@ -547,10 +630,22 @@ class MARBLE_OT_playtest(bpy.types.Operator):
             self.status = "Reset"
         self.phys.reset(self.respawn_pos)
         self.cam_target = self.phys.pos.copy()
+        if self.overlay is not None:
+            self.overlay.trail.clear()
 
     def _sync_marble(self):
-        self.marble.location = self.phys.pos
-        self.marble.rotation_quaternion = self.phys.rot
+        if self.overlay is not None:
+            self.overlay.set_transform(self.phys.pos, self.phys.rot)
+            if self.overlay.show_trail:
+                trail = self.overlay.trail
+                if not trail or (self.phys.pos - trail[-1]).length > self.radius * 0.5:
+                    trail.append(self.phys.pos.copy())
+                    if len(trail) > 400:
+                        del trail[0]
+            return
+        if self.marble is not None:
+            self.marble.location = self.phys.pos
+            self.marble.rotation_quaternion = self.phys.rot
 
     def _update_view(self, frame_time):
         settings = get_settings()
@@ -569,8 +664,14 @@ class MARBLE_OT_playtest(bpy.types.Operator):
 
     def _hud(self, context):
         speed = self.phys.vel.length
-        hspeed = Vector((self.phys.vel.x, self.phys.vel.y, 0.0)).length
         ground = "ground" if self.phys.on_ground else "air"
+        if self.overlay is not None:
+            self.overlay.hud_big = f"{speed:.1f} m/s"
+            self.overlay.hud_small = (f"{self.run_time:.2f} s   deaths {self.deaths}   {ground}"
+                                      f"   {self.draw_fps:.0f} fps")
+            self.overlay.hud_status = self.status
+            return
+        hspeed = Vector((self.phys.vel.x, self.phys.vel.y, 0.0)).length
         text = (f"PLAY  {speed:5.1f} m/s (h {hspeed:4.1f})  t={self.run_time:6.2f}s  "
                 f"deaths {self.deaths}  [{ground}]  {self.status}   "
                 "WASD move | Space jump | mouse/QE look | wheel zoom | R reset | M mouse-look | Esc stop")
@@ -599,6 +700,8 @@ class MARBLE_OT_playtest(bpy.types.Operator):
         if self._timer is not None:
             wm.event_timer_remove(self._timer)
             self._timer = None
+        overlay.disable()
+        self.overlay = None
         try:
             context.window.cursor_modal_restore()
         except (AttributeError, RuntimeError):
@@ -629,11 +732,22 @@ class MARBLE_OT_playtest(bpy.types.Operator):
             )
             curve.hide_select = True
 
+        replay = ""
+        if settings.record_runs and len(self.run_samples) > 1:
+            ghost = runs.bake_run(context, self.run_samples, {
+                "time": self.run_time,
+                "deaths": self.deaths,
+                "finished": self.finish_time is not None,
+                "max_speed": self.phys.max_speed_seen,
+            })
+            if ghost is not None:
+                replay = f" | saved as {ghost.name}"
+
         finish = f"finish {self.finish_time:.2f}s" if self.finish_time is not None else "no finish"
         settings.play_result = (
             f"{self.run_time:.1f}s on the clock | {finish} | deaths {self.deaths} | "
             f"max {self.phys.max_speed_seen:.1f} m/s | jumps {self.phys.jumps} | "
-            f"longest air {self.phys.max_air_time:.2f}s"
+            f"longest air {self.phys.max_air_time:.2f}s" + replay
         )
         try:
             self.area.tag_redraw()

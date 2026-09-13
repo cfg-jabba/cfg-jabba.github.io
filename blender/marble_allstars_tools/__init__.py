@@ -15,7 +15,7 @@ Three tools in one add-on (all live in the 3D View sidebar, "Marble" tab):
 bl_info = {
     "name": "Marble Allstars Tools",
     "author": "Clipper Studio Co",
-    "version": (0, 2, 0),
+    "version": (0, 3, 0),
     "blender": (4, 0, 0),
     "location": "3D View > Sidebar (N) > Marble",
     "description": "Drop-test, playtest and design marble levels inside Blender",
@@ -25,9 +25,11 @@ bl_info = {
 
 import importlib
 
-from . import props, utils, drop_tester, playtest, level_tools, ui
+from . import (props, utils, overlay, drop_tester, playtest, runs, ramp_tools,
+               level_tools, ui)
 
-_MODULES = (props, utils, drop_tester, playtest, level_tools, ui)
+_MODULES = (props, utils, overlay, drop_tester, playtest, runs, ramp_tools,
+            level_tools, ui)
 
 
 def register():

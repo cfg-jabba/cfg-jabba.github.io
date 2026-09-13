@@ -27,7 +27,8 @@ GAME_BOX_TYPES = [
     ("FALL", "Fall", "fall-box: a slab under the level that respawns the marble (auto-sized)"),
 ]
 SETTINGS_SKIP = {"level_collection", "drop_result", "play_result", "design_result", "sync_result",
-                 "is_playing", "preset"}
+                 "ramp_result", "limits_result", "is_playing", "preset",
+                 "show_dev", "show_dev_arcs", "show_dev_boxes", "show_dev_runs"}
 
 
 # --------------------------------------------------------------------------- physics maths
@@ -166,8 +167,41 @@ class MARBLE_OT_add_marker(bpy.types.Operator):
             empty["marble_tools_radius"] = settings.marker_radius
             empty.location = context.scene.cursor.location.copy() + Vector((0.0, 0.0, settings.marble_radius))
         utils.set_role(empty, self.marker_type)
-        utils.link_to_tools(context, empty)
+        utils.link_to_tools(context, empty, "BOX")
         _select_only(context, empty)
+        return {"FINISHED"}
+
+
+class MARBLE_OT_add_cosmetic(bpy.types.Operator):
+    bl_idname = "marble.add_cosmetic"
+    bl_label = "Add Cosmetic"
+    bl_description = ("Add a cosmetic pickup anchor at the 3D cursor, auto-numbered cosmetic1, "
+                      "cosmetic2, ... which is what the level script spawns pickups on")
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        settings = get_settings(context)
+        name = utils.next_cosmetic_name(context.scene)
+        empty = bpy.data.objects.new(name, None)
+        empty.empty_display_type = "SPHERE"
+        empty.empty_display_size = max(settings.marble_radius, 0.25)
+        empty.location = context.scene.cursor.location.copy() + Vector((0.0, 0.0, settings.cosmetic_height))
+        utils.set_role(empty, "COSMETIC")
+        utils.link_to_tools(context, empty, "BOX")
+        _select_only(context, empty)
+        self.report({"INFO"}, f"{name} placed {settings.cosmetic_height:.1f} m above the cursor")
+        return {"FINISHED"}
+
+
+class MARBLE_OT_toggle_dev(bpy.types.Operator):
+    bl_idname = "marble.toggle_dev"
+    bl_label = "Toggle Dev Tools"
+    bl_description = "Show or hide everything this add-on generates (arcs, paths, boxes, replays)"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        settings = get_settings(context)
+        settings.show_dev = not settings.show_dev
         return {"FINISHED"}
 
 
@@ -650,6 +684,8 @@ class MARBLE_OT_sync_godot(bpy.types.Operator):
 CLASSES = (
     MARBLE_OT_add_game_box,
     MARBLE_OT_add_marker,
+    MARBLE_OT_add_cosmetic,
+    MARBLE_OT_toggle_dev,
     MARBLE_OT_jump_arc,
     MARBLE_OT_solve_jump_speed,
     MARBLE_OT_ramp_info,

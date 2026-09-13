@@ -58,6 +58,7 @@ Open **Level Design > Game Boxes**. These create empties named the way the game'
 | Timer | `timer-box` | the run clock starts when the marble enters |
 | Finish | `finish-box` | entering it ends the run |
 | Fall | `fall-box` | respawn zone; auto-sized as a slab under the whole level |
+| Cosmetic | `cosmetic1`, `cosmetic2`, ... | a pickup anchor; the level script spawns a collectible on each |
 
 Timer and Finish boxes are placed at the 3D cursor, `Box Size` metres on a side. Scale them
 with `S` to taste: Godot reads the zone size as **scale x 2**, and the add-on uses the same
@@ -108,7 +109,7 @@ where does the ball go". For feel, use play mode.
 | R | respawn and reset the timer |
 | Esc / right mouse | stop |
 
-The viewport header shows speed, elapsed time, deaths and ground / air state. Checkpoints,
+An overlay shows speed, elapsed time, deaths and ground / air state. Checkpoints,
 the timer box and the finish box all work. When you stop, the route is left as a curve
 (`Play Path`) and the result box shows time, deaths, max speed and longest air time.
 
@@ -120,6 +121,65 @@ Wall rides, slides and grind rails are not simulated.
 
 Expand **Physics (matches player.gd)** to tweak anything. Every field's tooltip names the
 game constant it comes from.
+
+Two things worth knowing before you play a big level:
+
+* **Fast Draw** is on by default and is why play mode is smooth. It paints the marble into the
+  viewport instead of moving an object, so Blender never re-evaluates the scene mid-run.
+* If it still drags, drop **Redraw Hz** to 30 and switch the viewport to Solid shading. The
+  physics is unaffected - only the drawing gets cheaper.
+
+---
+
+## 5b. Watch your runs back
+
+Every run you play is saved. Open **Playtest > Replays**:
+
+1. Click **Watch Replays**. The timeline rewinds and plays, and your attempts run as coloured
+   ghost marbles.
+2. **Race Ghosts** (on) starts them all on the same frame, so you can see exactly where the
+   good run pulled ahead. Turn it off and click **Apply** to watch them one after another.
+3. The eye button next to a run solos it; the X deletes it. **Keep Runs** caps how many are
+   kept.
+
+They are plain keyframed objects in the *Marble Runs* collection, so you can render them,
+scrub them, or drag the playhead to a moment you want to look at closely.
+
+---
+
+## 5c. Ramp Lab: what does this ramp actually do?
+
+1. Tab into Edit Mode on the ramp, select its sloped face, and click **Mark Ramp**.
+   (In Object Mode it uses every rollable face of the active mesh instead.)
+2. The add-on flies the real physics up the ramp once per entry speed between **From** and
+   **To**, draws each trajectory, and reports how far and how high each launch goes.
+3. Change **From / To / Steps** and hit **Re-fly** to redo it.
+
+Read the exit speed in the report, not just the entry speed. Holding forward up a ramp drags
+every approach toward Max Input Speed, so a long ramp tends to launch you the same distance
+whether you arrive at 8 or 16 m/s. Shorten or steepen the ramp if you want the approach to
+matter.
+
+**Marble Limits** (under Inspect) answers the other half: what can the marble do with no ramp
+at all? It runs on a synthetic flat plane, so the numbers never depend on the open scene.
+
+```
+Top speed 12.0 m/s
+Standing jump 2.38 m high, 1.00 s air
+Running jump 16.7 m across, 3.42 m high, 1.18 s air
+```
+
+Size your gaps and ledges against those. It also draws the full-speed jump from the spawn so
+you can hold a gap up against it in the viewport.
+
+---
+
+## 5d. Hide the dev clutter
+
+The eye button at the top of the Marble panel toggles **everything** the add-on generates, so
+you can flip between "level as I am testing it" and "level as it ships" without deleting
+anything. The three small buttons beside it hide arcs and paths, boxes and markers, or replays
+on their own.
 
 ---
 
@@ -172,3 +232,7 @@ collection so you can hide or delete that collection before export.
   lifts it automatically, or move the empty up by one radius.
 * **Old numbers in an old .blend** – settings are stored per file. Pick the *Marble Allstars*
   preset and click the arrow next to it, or run Sync from Godot Project.
+* **Play mode is choppy** – check Fast Draw is on, drop Redraw Hz to 30, and use Solid shading.
+  A level with heavy modifiers or millions of polygons still costs what it costs to draw.
+* **Ghosts piling up** – lower *Keep Runs*, click *Clear Replays*, or hide them with the
+  replays button in the dev toggle row.

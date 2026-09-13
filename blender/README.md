@@ -7,9 +7,11 @@ Three tools live in one sidebar tab (**3D View > press N > Marble**):
 | --- | --- |
 | **Drop Tester** | Place the spawn, drop one or more rigid-body marbles (optionally with a launch speed), watch them on the timeline and see a traced curve of where each one went, plus a text report (max speed, distance, fell / finished / stopped). |
 | **Playtest** | Drive a marble around the level inside the viewport with WASD + mouse. A fixed-step physics loop that mirrors the game's `player.gd` (input force and cap, coast damping, jump momentum bonus, coyote time, jump buffer, landing-only bounce, ramp momentum, downhill boost), third-person camera like the game's rig, timer / finish / fall boxes, checkpoints, recorded route. |
-| **Level Design** | Godot-named game boxes (`spawnbox`, `timer-box`, `finish-box`, `fall-box`), jump-arc preview, "how fast do I need to launch to reach that spot" solver, ramp slope / speed-gained read-out, level stats, and **Sync from Godot Project** which reads the physics numbers straight out of `player.gd`, `player.tscn` and `camera_rig.gd`. |
+| **Level Design** | Godot-named game boxes (`spawnbox`, `timer-box`, `finish-box`, `fall-box`) and `cosmetic1..N` anchors, jump-arc preview, "how fast do I need to launch to reach that spot" solver, level stats, and **Sync from Godot Project** which reads the physics numbers straight out of `player.gd`, `player.tscn` and `camera_rig.gd`. |
+| **Ramp Lab** | Mark a ramp face and the add-on flies the real physics up it at a range of entry speeds, draws every trajectory and reports how far and how high each one throws you. **Marble Limits** measures what the marble can do on flat ground, so you have a number to size gaps and ledges against. |
+| **Replays** | Every run you play is saved as a keyframed ghost marble. Press the timeline's play button and watch your attempts back, all racing from the same frame or one after another. |
 
-Download: **[dist/marble_allstars_tools-0.2.0.zip](dist/marble_allstars_tools-0.2.0.zip)**
+Download: **[dist/marble_allstars_tools-0.3.0.zip](dist/marble_allstars_tools-0.3.0.zip)**
 (also served at <https://cfg-jabba.github.io/blender/> once this branch is merged).
 
 **New here? Read [TUTORIAL.md](TUTORIAL.md)** – a ten-minute walk-through of one level, from
@@ -58,8 +60,65 @@ Rigid-body caches stay in memory and the simulation length is capped by *Sim Fra
 | R | respawn at the start and reset the timer |
 | Esc / right mouse | stop playing |
 
-The viewport header shows speed, elapsed time, deaths, ground/air state and checkpoint /
-finish messages while playing.
+The overlay shows speed, elapsed time, deaths, ground/air state and checkpoint / finish
+messages while playing.
+
+**If play mode feels heavy**, the Performance block under Playtest has the levers:
+
+* **Fast Draw** (on by default) paints the marble straight into the viewport instead of moving
+  a real object. Moving an object tags Blender's dependency graph every frame, which forces a
+  full scene re-evaluation sixty times a second - that is what made play mode crawl. Turn it
+  off only if you want the marble's own material.
+* **Redraw Hz** caps how often the viewport redraws. Physics still runs at Physics Hz, so
+  dropping this to 30 halves the drawing cost without changing how the marble behaves.
+* **Live Trail** and **HUD** can each be switched off.
+* Solid or wireframe shading beats Material Preview by a mile on a big level.
+
+## Replays
+
+Every run is recorded and baked into a ghost marble with a keyframe per frame, so playback is
+just Blender's timeline. Under **Playtest > Replays**:
+
+* **Watch Replays** rewinds and starts playback.
+* **Race Ghosts** starts every run on the same frame so your attempts run side by side. Turn it
+  off and hit **Apply** to lay them out back to back instead.
+* Each run is listed with its time; a filled icon means it reached the finish box. The eye
+  button solos one run, the X deletes it.
+* **Keep Runs** caps how many are kept - the oldest is dropped past that.
+
+Ghosts are ordinary animated objects in the *Marble Runs* collection. Delete the collection and
+they are gone.
+
+## Ramp Lab
+
+Select the face of a ramp in Edit Mode (or just make the ramp the active object) and click
+**Mark Ramp**. The add-on works out the slope, the up-slope direction and where the ramp ends,
+then flies the real play-mode physics up it once per entry speed across the range you set.
+
+You get a trajectory curve per speed and a report like:
+
+```
+Max jump 5.4 m across, 0.4 m high
+Ramp Jump01 (20 deg)
+   8.0 m/s in, 12.7 out:   5.4 m across,  0.4 m up, 0.42 s air
+  16.0 m/s in, 12.7 out:   5.4 m across,  0.3 m up, 0.42 s air
+```
+
+The exit speed is worth reading: holding forward up a ramp pulls every approach toward Max
+Input Speed, so a long ramp often throws you the same distance no matter how fast you arrive.
+If you want the approach to matter, make the ramp shorter or steeper.
+
+**Marble Limits** is the companion: it runs the marble on a synthetic flat plane, so the
+numbers are the same whatever scene is open.
+
+```
+Top speed 12.0 m/s
+Standing jump 2.38 m high, 1.00 s air
+Running jump 16.7 m across, 3.42 m high, 1.18 s air
+```
+
+That is your grammar for gaps and ledges. It also draws the full-speed jump from the spawn so
+you can eyeball a gap against it.
 
 ## Level design helpers
 
@@ -74,6 +133,11 @@ finish messages while playing.
 * **Solve Launch Speed** – computes the exact speed needed to fly from the spawn to the Jump
   Target with the spawn's current angle, writes it into *Arc Speed* and *Launch Speed*, and
   draws the arc. Then hit **Drop Marble** to confirm it with real rigid-body physics.
+* **Cosmetic** – drops a `cosmetic1`, `cosmetic2`, ... anchor at the cursor, auto-numbered and
+  floated above the floor. The level script spawns a pickup on anything named that way.
+* **Dev Tools toggle** – the eye button at the top of the panel hides everything the add-on
+  generates, so you can see the level as it will ship. The three small buttons next to it hide
+  arcs and paths, boxes and markers, or replays on their own.
 * **Ramp Info** – select faces in Edit Mode (or a whole mesh in Object Mode) to get the slope
   angle, downhill heading, height and the speed a marble gains rolling down it from rest.
 * **Level Stats** – polygon count, bounds and warnings for unapplied / negative scale and
@@ -121,7 +185,10 @@ blender/
     utils.py               collections, spawn, level geometry, BVH, curves
     drop_tester.py         rigid-body drop / launch / path tracing
     playtest.py            in-viewport play mode + MarblePhysics
-    level_tools.py         game boxes, markers, arcs, solver, ramp info, stats, Godot sync
+    overlay.py             GPU marble / trail / HUD drawing (why play mode is fast)
+    runs.py                replay recording and the keyframed ghosts
+    ramp_tools.py          ramp marking, launch sweeps, flat-ground limits
+    level_tools.py         game boxes, cosmetics, arcs, solver, stats, Godot sync
     ui.py                  sidebar panels
   TUTORIAL.md              step-by-step walkthrough
   tests/test_headless.py   smoke test (python -m pip install bpy; python tests/test_headless.py)

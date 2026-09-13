@@ -9,8 +9,15 @@ from mathutils.bvhtree import BVHTree
 from .props import AUTO_RB_PROP, BOX_PROP, ROLE_PROP
 
 TOOLS_COLLECTION = "Marble Tools"
+# Sub-collections so the dev clutter can be hidden without hiding the level markers.
+SUB_COLLECTIONS = {
+    "DEV": "Marble Dev",      # arcs, traced paths, test marbles
+    "BOX": "Marble Boxes",    # spawn, game boxes, markers, cosmetics
+    "RUN": "Marble Runs",     # recorded replay ghosts
+}
 # Object names the game's level_controller.gd looks for in an imported .blend.
 SPAWN_NAME = "spawnbox"
+COSMETIC_PREFIX = "cosmetic"   # level_8.gd: lower.begins_with("cosmetic")
 GAME_BOX_NAMES = {
     "SPAWN": "spawnbox",
     "TIMER": "timer-box",
@@ -27,29 +34,72 @@ GEOMETRY_TYPES = {"MESH", "CURVE", "SURFACE", "FONT", "META"}
 
 
 # --------------------------------------------------------------------------- collections
-def get_tools_collection(context):
-    """Collection that holds everything this add-on generates."""
+def get_tools_collection(context, sub=None):
+    """The add-on's collection, or one of its sub-collections ('DEV'/'BOX'/'RUN')."""
     scene = context.scene
-    coll = bpy.data.collections.get(TOOLS_COLLECTION)
-    if coll is None:
-        coll = bpy.data.collections.new(TOOLS_COLLECTION)
-    if coll.name not in scene.collection.children:
+    root = bpy.data.collections.get(TOOLS_COLLECTION)
+    if root is None:
+        root = bpy.data.collections.new(TOOLS_COLLECTION)
+    if root.name not in scene.collection.children:
         # It might be linked somewhere else in another scene; link here too.
         try:
-            scene.collection.children.link(coll)
+            scene.collection.children.link(root)
         except RuntimeError:
             pass
-    return coll
+    if sub is None:
+        return root
+    name = SUB_COLLECTIONS[sub]
+    child = bpy.data.collections.get(name)
+    if child is None:
+        child = bpy.data.collections.new(name)
+    if child.name not in root.children:
+        try:
+            root.children.link(child)
+        except RuntimeError:
+            pass
+    return child
 
 
-def link_to_tools(context, obj):
-    coll = get_tools_collection(context)
+def tool_collections():
+    """Every collection this add-on owns that currently exists."""
+    names = [TOOLS_COLLECTION] + list(SUB_COLLECTIONS.values())
+    return [c for c in (bpy.data.collections.get(n) for n in names) if c is not None]
+
+
+def set_sub_visible(sub, visible):
+    """Show or hide one sub-collection (the monitor toggle, so it also hides in renders)."""
+    coll = bpy.data.collections.get(SUB_COLLECTIONS[sub])
+    if coll is None:
+        return False
+    coll.hide_viewport = not visible
+    coll.hide_render = not visible
+    return True
+
+
+def link_to_tools(context, obj, sub="DEV"):
+    coll = get_tools_collection(context, sub)
     for other in list(obj.users_collection):
         if other is not coll:
             other.objects.unlink(obj)
     if obj.name not in coll.objects:
         coll.objects.link(obj)
     return obj
+
+
+def next_cosmetic_name(scene=None):
+    """cosmetic1, cosmetic2, ... - the game matches any object whose name starts with it."""
+    scene = scene or bpy.context.scene
+    used = set()
+    for obj in scene.objects:
+        lower = obj.name.lower()
+        if lower.startswith(COSMETIC_PREFIX):
+            tail = lower[len(COSMETIC_PREFIX):]
+            if tail.isdigit():
+                used.add(int(tail))
+    n = 1
+    while n in used:
+        n += 1
+    return f"{COSMETIC_PREFIX}{n}"
 
 
 def set_role(obj, role):
@@ -140,7 +190,7 @@ def create_spawn(context, location):
     empty.empty_display_size = max(settings.marble_radius * 2.0, 0.25)
     empty.location = location
     set_role(empty, "SPAWN")
-    link_to_tools(context, empty)
+    link_to_tools(context, empty, "BOX")
     return empty
 
 
@@ -154,7 +204,7 @@ def create_game_box(context, kind, location, half_size):
     empty.scale = half_size
     empty[BOX_PROP] = True
     set_role(empty, kind)
-    link_to_tools(context, empty)
+    link_to_tools(context, empty, "BOX")
     return empty
 
 
@@ -198,14 +248,14 @@ def get_level_objects(context):
     else:
         candidates = list(context.scene.objects)
 
-    tools = bpy.data.collections.get(TOOLS_COLLECTION)
+    tools = tool_collections()
     level = []
     for obj in candidates:
         if obj.type not in GEOMETRY_TYPES:
             continue
         if get_role(obj):
             continue
-        if tools is not None and obj.name in tools.objects:
+        if any(obj.name in coll.objects for coll in tools):
             continue
         if settings.level_collection is None:
             # Skip hidden objects when we are guessing the level from the whole scene.
@@ -301,7 +351,7 @@ def make_path_curve(context, name, points, radius=0.05, color=(1.0, 0.3, 0.1, 1.
     mat = get_material(name.split(" ")[0] + " Path", color)
     curve.materials.append(mat)
     set_role(obj, role)
-    link_to_tools(context, obj)
+    link_to_tools(context, obj, "DEV")
     return obj
 
 
