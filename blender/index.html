@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marble Allstars Tools for Blender</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #222; }
+    h1 { margin-bottom: 0.2em; }
+    .btn { display: inline-block; background: #1f6feb; color: #fff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 12px 0; }
+    code { background: #f3f3f3; padding: 2px 5px; border-radius: 4px; }
+    table { border-collapse: collapse; width: 100%; }
+    td, th { border-bottom: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+    .muted { color: #666; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <h1>Marble Allstars Tools</h1>
+  <p class="muted">Blender add-on for drop-testing, playtesting and designing marble levels.</p>
+
+  <a class="btn" href="dist/marble_allstars_tools-0.1.1.zip">Download add-on (zip)</a>
+  <p class="muted">Blender 4.0 or newer. Full docs: <a href="https://github.com/cfg-jabba/cfg-jabba.github.io/tree/main/blender">README on GitHub</a>.</p>
+
+  <h2>Install</h2>
+  <ol>
+    <li>Download the zip (do not unzip it).</li>
+    <li>Blender &gt; <strong>Edit &gt; Preferences &gt; Add-ons</strong> &gt; drop-down arrow &gt; <strong>Install from Disk</strong> (older: <strong>Install...</strong>).</li>
+    <li>Enable <strong>Marble Allstars Tools</strong>.</li>
+    <li>Press <strong>N</strong> in the 3D viewport and open the <strong>Marble</strong> tab.</li>
+  </ol>
+
+  <h2>What you get</h2>
+  <table>
+    <tr><th>Drop Tester</th><td>Spawn empty + rigid-body marble drop or launch, traced paths, text report (max speed, distance, fell off / finished / stopped). Drop a row of marbles to test ramp width.</td></tr>
+    <tr><th>Playtest</th><td>Drive the marble in the viewport: WASD move, Space jump, mouse look, R respawn, Esc stop. Checkpoints, finish timer, kill plane, recorded route.</td></tr>
+    <tr><th>Level Design</th><td>Jump-arc preview, launch-speed solver to a target, ramp slope and speed-gained read-out, level stats, JSON settings sync with the Godot project.</td></tr>
+  </table>
+
+  <h2>Playtest controls</h2>
+  <table>
+    <tr><td><code>W A S D</code> / arrows</td><td>move (camera relative)</td></tr>
+    <tr><td><code>Space</code></td><td>jump</td></tr>
+    <tr><td>Mouse / <code>Q</code> <code>E</code></td><td>look around (<code>M</code> toggles mouse look)</td></tr>
+    <tr><td>Wheel</td><td>camera distance</td></tr>
+    <tr><td><code>R</code></td><td>respawn</td></tr>
+    <tr><td><code>Esc</code></td><td>stop</td></tr>
+  </table>
+</body>
+</html>
