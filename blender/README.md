@@ -21,11 +21,24 @@ Blender 4.0 or newer. Tested headlessly against Blender 4.2 LTS.
 
 ## Install
 
+By hand, about twenty seconds:
+
 1. Download the zip above (do not unzip it).
 2. Blender > **Edit > Preferences > Add-ons > Install...** and pick the zip.
    On Blender 4.2+ use the drop-down arrow in the top right > **Install from Disk**.
 3. Tick **Marble Allstars Tools**.
 4. Press **N** in the 3D viewport and open the **Marble** tab.
+
+Or let a script do it. Put `install_addon.py` and the zip in the same folder, then either:
+
+* **Windows:** close Blender and double-click `install_windows.bat`. It finds `blender.exe`,
+  installs the add-on, enables it and saves your preferences.
+* **Any OS:** open Blender, go to the **Scripting** workspace, `Text > Open` the
+  `install_addon.py` file, and press Run.
+
+The script finds the newest `marble_allstars_tools-*.zip` in Downloads, on the Desktop or beside
+itself, removes any older copy of the add-on, installs and enables it. It touches nothing
+outside Blender's own add-ons folder.
 
 Nothing is written to disk by the add-on except the settings JSON when you explicitly export it.
 Rigid-body caches stay in memory and the simulation length is capped by *Sim Frames*.

@@ -9,6 +9,10 @@ The panel also has a **Quick Start** section with the short version of this page
 
 ## 0. Install (once)
 
+**Shortcut:** put `install_addon.py` next to the zip and double-click `install_windows.bat`
+(close Blender first), or open Blender's Scripting workspace, `Text > Open` that script and
+press Run. It installs, enables and saves. Otherwise, by hand:
+
 1. Download `marble_allstars_tools-<version>.zip`. Do not unzip it.
 2. Blender > **Edit > Preferences > Add-ons** > the small arrow in the top right >
    **Install from Disk** (Blender 4.0/4.1: the **Install...** button). Pick the zip.
