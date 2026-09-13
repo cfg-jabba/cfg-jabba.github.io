@@ -272,6 +272,9 @@ class MARBLE_OT_drop(bpy.types.Operator):
 
         rbw = ensure_rigidbody_world(context, settings)
         prepare_level_collisions(context, settings, level)
+        # Same gravity as the playtest so both tools agree on how heavy the marble feels.
+        scene.use_gravity = True
+        scene.gravity = (0.0, 0.0, -settings.gravity)
 
         start = scene.frame_start
         end = start + settings.sim_frames

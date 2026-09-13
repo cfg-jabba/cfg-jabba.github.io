@@ -114,6 +114,9 @@ def test_physics():
     print("[play physics]")
     ctx = bpy.context
     s = ctx.scene.marble_tools
+    # The geometry expectations below were tuned for the Godot-stock numbers.
+    s.preset = "GODOT"
+    bpy.ops.marble.apply_preset()
     bvh, tris = utils.build_level_bvh(ctx)
     check(bvh is not None and tris > 0, f"bvh built with {tris} polygons")
     phys = playtest.MarblePhysics(bvh, s.marble_radius, playtest.params_from_settings(s))
@@ -151,10 +154,32 @@ def test_physics():
     check(status == "FELL", "kill plane reported")
     check(phys.rot.magnitude > 0.99, "rotation quaternion stays normalised")
 
+    # Fall-gravity multiplier: the same jump lands sooner when falling is heavier.
+    def jump_air_ticks(mult, jump_cut=False, hold=True):
+        params = dict(playtest.params_from_settings(s), fall_gravity_mult=mult, jump_cut=jump_cut)
+        ph = playtest.MarblePhysics(bvh, s.marble_radius, params)
+        ph.reset(Vector((0.0, 0.0, s.marble_radius)))
+        for _ in range(30):
+            ph.step(1 / 60, Vector((0, 0, 0)), False)
+        ph.step(1 / 60, Vector((0, 0, 0)), True, jump_held=hold)
+        ticks = 1
+        while not ph.on_ground and ticks < 600:
+            ph.step(1 / 60, Vector((0, 0, 0)), False, jump_held=hold)
+            ticks += 1
+        return ticks
+
+    plain = jump_air_ticks(1.0)
+    heavy = jump_air_ticks(2.0)
+    cut = jump_air_ticks(2.0, jump_cut=True, hold=False)
+    print(f"   air ticks: normal {plain}, fall x2 {heavy}, fall x2 + jump cut {cut}")
+    check(plain > heavy > cut, "heavier fall and jump-cut shorten the jump")
+
     # Camera helpers
     rot, fwd, right = playtest.camera_basis(0.0, -20.0)
     check((fwd - Vector((0, 1, 0))).length < 1e-6, "yaw 0 looks along +Y")
     check((right - Vector((1, 0, 0))).length < 1e-6, "right is +X")
+    s.preset = "SNAPPY"
+    bpy.ops.marble.apply_preset()
 
 
 def test_design():
@@ -223,8 +248,9 @@ def test_presets():
     s.preset = "MARBLE_BLAST"
     bpy.ops.marble.apply_preset()
     check(abs(s.gravity - 20.0) < 1e-6, "preset applied")
-    s.preset = "GODOT"
+    s.preset = "SNAPPY"
     bpy.ops.marble.apply_preset()
+    check(s.fall_gravity_mult > 1.0 and s.jump_cut, "default preset is snappy")
 
 
 def main():

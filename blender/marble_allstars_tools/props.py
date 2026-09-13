@@ -13,21 +13,25 @@ from bpy.props import (
 # Presets are deliberately approximate. Use "Export / Import settings" in the
 # Level Design panel to keep the numbers in sync with the real Godot project.
 PRESETS = {
-    "GODOT": {
-        "label": "Godot default (9.8 gravity)",
-        "gravity": 9.8,
-        "accel": 25.0,
-        "air_accel": 6.0,
-        "max_speed": 12.0,
-        "jump_speed": 6.0,
-        "bounce": 0.15,
-        "friction": 1.2,
-        "rb_friction": 0.5,
-        "rb_bounciness": 0.1,
+    "SNAPPY": {
+        "label": "Snappy marble (default)",
+        "gravity": 22.0,
+        "fall_gravity_mult": 1.5,
+        "jump_cut": True,
+        "accel": 45.0,
+        "air_accel": 12.0,
+        "max_speed": 16.0,
+        "jump_speed": 8.5,
+        "bounce": 0.3,
+        "friction": 1.5,
+        "rb_friction": 0.6,
+        "rb_bounciness": 0.3,
     },
     "MARBLE_BLAST": {
-        "label": "Marble Blast style (snappy)",
+        "label": "Marble Blast style",
         "gravity": 20.0,
+        "fall_gravity_mult": 1.0,
+        "jump_cut": False,
         "accel": 40.0,
         "air_accel": 8.0,
         "max_speed": 15.0,
@@ -37,17 +41,33 @@ PRESETS = {
         "rb_friction": 0.6,
         "rb_bounciness": 0.4,
     },
-    "FLOATY": {
-        "label": "Floaty (low gravity)",
-        "gravity": 5.0,
-        "accel": 18.0,
+    "GODOT": {
+        "label": "Godot stock (9.8 gravity, floaty)",
+        "gravity": 9.8,
+        "fall_gravity_mult": 1.0,
+        "jump_cut": False,
+        "accel": 25.0,
         "air_accel": 6.0,
-        "max_speed": 10.0,
-        "jump_speed": 5.0,
-        "bounce": 0.3,
-        "friction": 0.8,
-        "rb_friction": 0.4,
-        "rb_bounciness": 0.3,
+        "max_speed": 12.0,
+        "jump_speed": 6.0,
+        "bounce": 0.15,
+        "friction": 1.2,
+        "rb_friction": 0.5,
+        "rb_bounciness": 0.1,
+    },
+    "HEAVY": {
+        "label": "Heavy (fast falls, short jumps)",
+        "gravity": 30.0,
+        "fall_gravity_mult": 1.6,
+        "jump_cut": True,
+        "accel": 55.0,
+        "air_accel": 10.0,
+        "max_speed": 18.0,
+        "jump_speed": 9.0,
+        "bounce": 0.2,
+        "friction": 2.0,
+        "rb_friction": 0.7,
+        "rb_bounciness": 0.2,
     },
 }
 
@@ -76,7 +96,7 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
     preset: EnumProperty(
         name="Preset",
         items=[(key, val["label"], "") for key, val in PRESETS.items()],
-        default="GODOT",
+        default="SNAPPY",
     )
 
     # ------------------------------------------------------------ drop tester
@@ -100,8 +120,8 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
         name="Substeps / Frame", default=10, min=1, max=100,
         description="Rigid body substeps per frame. Raise if fast marbles tunnel through thin geometry",
     )
-    rb_friction: FloatProperty(name="Friction", default=0.5, min=0.0, max=1.0)
-    rb_bounciness: FloatProperty(name="Bounciness", default=0.1, min=0.0, max=1.0)
+    rb_friction: FloatProperty(name="Friction", default=0.6, min=0.0, max=1.0)
+    rb_bounciness: FloatProperty(name="Bounciness", default=0.3, min=0.0, max=1.0)
     trace_path: BoolProperty(
         name="Trace Path", default=True,
         description="Create a curve showing where each marble went",
@@ -117,26 +137,37 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
     drop_result: StringProperty(name="Last Drop", default="")
 
     # --------------------------------------------------------------- playtest
-    gravity: FloatProperty(name="Gravity", default=9.8, min=0.0, soft_max=50.0)
+    gravity: FloatProperty(
+        name="Gravity", default=22.0, min=0.0, soft_max=60.0,
+        description="m/s². Low values feel floaty; marble games usually run 20-30. Also used by the drop tester",
+    )
+    fall_gravity_mult: FloatProperty(
+        name="Fall Gravity x", default=1.5, min=1.0, max=4.0,
+        description="Extra gravity while falling so jumps come down faster than they go up (1 = off)",
+    )
+    jump_cut: BoolProperty(
+        name="Jump Cut", default=True,
+        description="Releasing Space early ends the jump sooner (extra gravity applies while still rising)",
+    )
     accel: FloatProperty(
-        name="Ground Accel", default=25.0, min=0.0, soft_max=100.0,
+        name="Ground Accel", default=45.0, min=0.0, soft_max=100.0,
         description="Acceleration from player input while on the ground (m/s²)",
     )
     air_accel: FloatProperty(
-        name="Air Accel", default=6.0, min=0.0, soft_max=50.0,
+        name="Air Accel", default=12.0, min=0.0, soft_max=50.0,
         description="Acceleration from player input while airborne (m/s²)",
     )
     max_speed: FloatProperty(
-        name="Max Input Speed", default=12.0, min=0.1, soft_max=60.0,
+        name="Max Input Speed", default=16.0, min=0.1, soft_max=60.0,
         description="Input stops accelerating past this speed (ramps and gravity can still go faster)",
     )
-    jump_speed: FloatProperty(name="Jump Speed", default=6.0, min=0.0, soft_max=30.0)
+    jump_speed: FloatProperty(name="Jump Speed", default=8.5, min=0.0, soft_max=30.0)
     bounce: FloatProperty(
-        name="Bounce", default=0.15, min=0.0, max=1.0,
+        name="Bounce", default=0.3, min=0.0, max=1.0,
         description="Restitution when hitting surfaces (0 = no bounce)",
     )
     friction: FloatProperty(
-        name="Rolling Friction", default=1.2, min=0.0, soft_max=10.0,
+        name="Rolling Friction", default=1.5, min=0.0, soft_max=10.0,
         description="Damping applied to the velocity along the surface while grounded",
     )
     slope_limit: FloatProperty(

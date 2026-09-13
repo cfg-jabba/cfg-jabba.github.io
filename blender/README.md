@@ -9,7 +9,7 @@ Three tools live in one sidebar tab (**3D View > press N > Marble**):
 | **Playtest** | Drive a marble around the level inside the viewport with WASD + mouse. Godot-style fixed-step physics written in plain Python, third-person camera, checkpoints, finish timer, kill plane, recorded route. |
 | **Level Design** | Jump-arc preview, "how fast do I need to launch to reach that spot" solver, ramp slope / speed-gained read-out, level stats with physics gotchas, checkpoint / finish / target markers, and JSON import/export so the numbers stay in sync with the Godot project. |
 
-Download: **[dist/marble_allstars_tools-0.1.0.zip](dist/marble_allstars_tools-0.1.0.zip)**
+Download: **[dist/marble_allstars_tools-0.1.1.zip](dist/marble_allstars_tools-0.1.1.zip)**
 (also served at <https://cfg-jabba.github.io/blender/> once this branch is merged).
 
 Blender 4.0 or newer. Tested headlessly against Blender 4.2 LTS.
@@ -76,9 +76,16 @@ finish messages while playing.
 
 The playtest physics is a deliberately small model so it can be tuned by hand:
 
+**Feels floaty?** Raise **Gravity** first (marble games usually run 20-30, not Godot's stock 9.8),
+then raise **Fall Gravity x** so the marble comes down faster than it went up, and keep
+**Jump Cut** on so a short tap gives a short hop. Lower **Jump Speed** if jumps are still too
+tall. The *Snappy marble* preset is the default and a good starting point.
+
 | Setting | Meaning |
 | --- | --- |
-| Gravity | m/s² (Godot `physics/3d/default_gravity`, default 9.8) |
+| Gravity | m/s² (Godot `physics/3d/default_gravity`, stock 9.8). Shared with the drop tester |
+| Fall Gravity x | multiplier applied while falling (and while rising after an early jump release with Jump Cut) |
+| Jump Cut | releasing Space early ends the jump sooner |
 | Ground / Air Accel | acceleration from input while grounded / airborne |
 | Max Input Speed | input stops adding speed past this; slopes and gravity still can |
 | Jump Speed | vertical speed added by a jump |
@@ -87,8 +94,8 @@ The playtest physics is a deliberately small model so it can be tuned by hand:
 | Slope Limit | steeper surfaces are walls, not ground |
 | Physics Hz / Substeps | tick rate (Godot default 60) and collision substeps |
 
-Three presets are included (Godot default, Marble Blast style, Floaty). To keep numbers in
-sync with the real game:
+Four presets are included (Snappy marble, Marble Blast style, Godot stock, Heavy). To keep
+numbers in sync with the real game:
 
 * **Read project.godot** – pulls gravity and the physics tick rate straight from the Godot
   project file.

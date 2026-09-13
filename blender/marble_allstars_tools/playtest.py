@@ -51,6 +51,7 @@ class MarblePhysics:
         self.on_ground = False
         self.ground_normal = UP.copy()
         self.coyote = 0.0
+        self.jumping = False
         self.max_speed_seen = 0.0
         self.jumps = 0
         self.air_time = 0.0
@@ -63,21 +64,39 @@ class MarblePhysics:
         self.omega = Vector((0.0, 0.0, 0.0))
         self.on_ground = False
         self.coyote = 0.0
+        self.jumping = False
         self.air_time = 0.0
 
-    def step(self, dt, move_dir, jump):
-        """Advance one physics tick. Returns 'FELL' when below the kill plane."""
+    def step(self, dt, move_dir, jump, jump_held=None):
+        """Advance one physics tick. Returns 'FELL' when below the kill plane.
+
+        `jump` requests a jump this tick; `jump_held` says whether the jump key is
+        still down (used for jump-cut). Defaults to the same as `jump`.
+        """
+        if jump_held is None:
+            jump_held = jump
         substeps = max(1, int(self.p["substeps"]))
         sub_dt = dt / substeps
         status = None
         for _ in range(substeps):
-            result = self._substep(sub_dt, move_dir, jump)
+            result = self._substep(sub_dt, move_dir, jump, jump_held)
             jump = False
             if result:
                 status = result
         return status
 
-    def _substep(self, dt, move_dir, jump):
+    def _gravity_scale(self, jump_held):
+        """Heavier gravity while falling (and while rising after an early jump release)."""
+        mult = self.p.get("fall_gravity_mult", 1.0)
+        if mult <= 1.0 or self.on_ground:
+            return 1.0
+        if self.vel.z < 0.0:
+            return mult
+        if self.p.get("jump_cut", False) and self.jumping and not jump_held:
+            return mult
+        return 1.0
+
+    def _substep(self, dt, move_dir, jump, jump_held=True):
         p = self.p
         # --- player input
         if move_dir.length_squared > 1e-8:
@@ -111,9 +130,10 @@ class MarblePhysics:
             self.on_ground = False
             self.coyote = 0.0
             self.jumps += 1
+            self.jumping = True
 
-        # --- gravity
-        self.vel.z -= p["gravity"] * dt
+        # --- gravity (heavier on the way down so jumps do not float)
+        self.vel.z -= p["gravity"] * self._gravity_scale(jump_held) * dt
 
         # --- integrate with a tunnelling guard for fast movement
         disp = self.vel * dt
@@ -156,6 +176,7 @@ class MarblePhysics:
         if self.on_ground:
             self.ground_normal = best_normal
             self.coyote = 0.1
+            self.jumping = False
             if self.air_time > 0.0:
                 self.max_air_time = max(self.max_air_time, self.air_time)
             self.air_time = 0.0
@@ -181,6 +202,8 @@ class MarblePhysics:
 def params_from_settings(settings):
     return {
         "gravity": settings.gravity,
+        "fall_gravity_mult": settings.fall_gravity_mult,
+        "jump_cut": settings.jump_cut,
         "accel": settings.accel,
         "air_accel": settings.air_accel,
         "max_speed": settings.max_speed,
@@ -410,7 +433,7 @@ class MARBLE_OT_playtest(bpy.types.Operator):
             self.accum -= self.dt
             self.run_time += self.dt
             self.tick_count += 1
-            result = self.phys.step(self.dt, move_dir, jump)
+            result = self.phys.step(self.dt, move_dir, jump, jump_held=jump)
             stepped = True
             if result == "FELL":
                 self.deaths += 1

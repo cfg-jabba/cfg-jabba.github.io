@@ -15,7 +15,7 @@ Three tools in one add-on (all live in the 3D View sidebar, "Marble" tab):
 bl_info = {
     "name": "Marble Allstars Tools",
     "author": "Clipper Studio Co",
-    "version": (0, 1, 0),
+    "version": (0, 1, 1),
     "blender": (4, 0, 0),
     "location": "3D View > Sidebar (N) > Marble",
     "description": "Drop-test, playtest and design marble levels inside Blender",
