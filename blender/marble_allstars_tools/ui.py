@@ -35,7 +35,9 @@ class MARBLE_PT_setup(MarblePanelMixin, bpy.types.Panel):
         layout = self.layout
         col = layout.column(align=True)
         col.prop(s, "level_collection")
-        col.prop(s, "marble_radius")
+        row = col.row(align=True)
+        row.prop(s, "marble_radius")
+        row.prop(s, "marble_mass")
         col.prop(s, "kill_z")
         row = layout.row(align=True)
         row.prop(s, "preset", text="")
@@ -48,7 +50,35 @@ class MARBLE_PT_setup(MarblePanelMixin, bpy.types.Panel):
         row.operator("marble.add_spawn", text="At Cursor", icon="PIVOT_CURSOR")
         row.operator("marble.spawn_from_active", text="At Active", icon="OBJECT_DATA")
         row.operator("marble.select_spawn", text="", icon="RESTRICT_SELECT_OFF")
-        box.label(text="Z arrow = up, Y arrow = launch dir", icon="INFO")
+        box.label(text="Origin = marble centre, Y arrow = launch dir", icon="INFO")
+
+
+class MARBLE_PT_quickstart(MarblePanelMixin, bpy.types.Panel):
+    bl_label = "Quick Start"
+    bl_idname = "MARBLE_PT_quickstart"
+    bl_parent_id = "MARBLE_PT_setup"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+        col.scale_y = 0.85
+        steps = (
+            "1. Model the level. Apply scale (Ctrl+A).",
+            "2. Put the 3D cursor on the floor at the start,",
+            "    click Spawn > At Cursor.",
+            "3. Level Design > Game Boxes: add Timer,",
+            "    Finish and Fall. Name them for Godot.",
+            "4. Drop Tester > Drop Marble to watch a",
+            "    rigid-body marble roll from the spawn.",
+            "5. Playtest > Play Level, then WASD + Space.",
+            "    Esc stops. Your route is left as a curve.",
+            "6. Sync from Godot Project keeps the physics",
+            "    identical to player.gd.",
+        )
+        for line in steps:
+            col.label(text=line)
+        layout.operator("marble.open_tutorial", icon="HELP")
 
 
 class MARBLE_PT_drop(MarblePanelMixin, bpy.types.Panel):
@@ -99,28 +129,22 @@ class MARBLE_PT_play(MarblePanelMixin, bpy.types.Panel):
             row.operator("marble.playtest", icon="PLAY")
         draw_result(layout, s.play_result)
 
-        col = layout.column(align=True)
-        col.label(text="Physics")
-        col.prop(s, "gravity")
-        row = col.row(align=True)
-        row.prop(s, "fall_gravity_mult")
-        row.prop(s, "jump_cut", toggle=True)
-        col.prop(s, "accel")
-        col.prop(s, "air_accel")
-        col.prop(s, "max_speed")
-        col.prop(s, "jump_speed")
-        col.prop(s, "bounce")
-        col.prop(s, "friction")
-        col.prop(s, "slope_limit")
-        row = col.row(align=True)
-        row.prop(s, "physics_hz")
-        row.prop(s, "physics_substeps")
+        box = layout.box()
+        col = box.column(align=True)
+        col.scale_y = 0.8
+        col.label(text="WASD / arrows: move", icon="EVENT_W")
+        col.label(text="Space: jump   R: respawn", icon="EVENT_SPACEKEY")
+        col.label(text="Mouse / Q E: look   Wheel: zoom", icon="MOUSE_MOVE")
+        col.label(text="M: toggle mouse look   Esc: stop", icon="EVENT_ESC")
 
         col = layout.column(align=True)
         col.label(text="Camera")
-        col.prop(s, "cam_distance")
-        col.prop(s, "cam_height")
-        col.prop(s, "cam_pitch")
+        row = col.row(align=True)
+        row.prop(s, "cam_distance", text="Dist")
+        row.prop(s, "cam_pitch", text="Pitch")
+        row = col.row(align=True)
+        row.prop(s, "cam_height", text="Height")
+        row.prop(s, "cam_follow_rate", text="Follow")
         row = col.row(align=True)
         row.prop(s, "mouse_look", toggle=True)
         row.prop(s, "mouse_sensitivity", text="Sens")
@@ -129,13 +153,54 @@ class MARBLE_PT_play(MarblePanelMixin, bpy.types.Panel):
         row.prop(s, "restore_view", toggle=True)
         layout.operator("marble.clear_play", icon="TRASH")
 
-        box = layout.box()
-        col = box.column(align=True)
-        col.scale_y = 0.8
-        col.label(text="WASD / arrows: move", icon="EVENT_W")
-        col.label(text="Space: jump   R: respawn", icon="EVENT_SPACEKEY")
-        col.label(text="Mouse / Q E: look   Wheel: zoom", icon="MOUSE_MOVE")
-        col.label(text="M: toggle mouse look   Esc: stop", icon="EVENT_ESC")
+
+class MARBLE_PT_physics(MarblePanelMixin, bpy.types.Panel):
+    bl_label = "Physics (matches player.gd)"
+    bl_idname = "MARBLE_PT_physics"
+    bl_parent_id = "MARBLE_PT_play"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        s = get_settings(context)
+        layout = self.layout
+        col = layout.column(align=True)
+        col.label(text="Gravity & jump")
+        col.prop(s, "gravity")
+        row = col.row(align=True)
+        row.prop(s, "fall_gravity_mult")
+        row.prop(s, "jump_cut", toggle=True)
+        col.prop(s, "jump_speed")
+        col.prop(s, "jump_bonus")
+        row = col.row(align=True)
+        row.prop(s, "jump_bonus_min", text="From")
+        row.prop(s, "jump_bonus_span", text="Span")
+        row = col.row(align=True)
+        row.prop(s, "coyote_time", text="Coyote")
+        row.prop(s, "jump_buffer", text="Buffer")
+
+        col = layout.column(align=True)
+        col.label(text="Movement")
+        col.prop(s, "accel")
+        col.prop(s, "air_accel")
+        col.prop(s, "max_speed")
+        col.prop(s, "friction")
+        col.prop(s, "coast_friction")
+        col.prop(s, "air_friction")
+        col.prop(s, "air_drag")
+
+        col = layout.column(align=True)
+        col.label(text="Surfaces")
+        col.prop(s, "bounce")
+        col.prop(s, "ramp_keep")
+        col.prop(s, "flow_limit")
+        col.prop(s, "slope_boost")
+        row = col.row(align=True)
+        row.prop(s, "uphill_assist", text="Uphill")
+        row.prop(s, "assist_min_speed", text="From")
+        col.prop(s, "slope_limit")
+        row = col.row(align=True)
+        row.prop(s, "physics_hz")
+        row.prop(s, "physics_substeps")
 
 
 class MARBLE_PT_design(MarblePanelMixin, bpy.types.Panel):
@@ -148,10 +213,19 @@ class MARBLE_PT_design(MarblePanelMixin, bpy.types.Panel):
         layout = self.layout
 
         col = layout.column(align=True)
+        col.label(text="Game Boxes (Godot names, at 3D cursor)")
+        row = col.row(align=True)
+        row.operator("marble.add_game_box", text="Spawn", icon="EMPTY_ARROWS").kind = "SPAWN"
+        row.operator("marble.add_game_box", text="Timer", icon="TIME").kind = "TIMER"
+        row = col.row(align=True)
+        row.operator("marble.add_game_box", text="Finish", icon="SOLO_ON").kind = "FINISH"
+        row.operator("marble.add_game_box", text="Fall", icon="TRIA_DOWN_BAR").kind = "FALL"
+        col.prop(s, "box_size")
+
+        col = layout.column(align=True)
         col.label(text="Markers (at 3D cursor)")
         row = col.row(align=True)
         row.operator("marble.add_marker", text="Checkpoint", icon="EMPTY_AXIS").marker_type = "CHECKPOINT"
-        row.operator("marble.add_marker", text="Finish", icon="SOLO_ON").marker_type = "FINISH"
         row.operator("marble.add_marker", text="Target", icon="OUTLINER_OB_EMPTY").marker_type = "TARGET"
         col.prop(s, "marker_radius")
 
@@ -171,18 +245,25 @@ class MARBLE_PT_design(MarblePanelMixin, bpy.types.Panel):
         row = col.row(align=True)
         row.operator("marble.ramp_info", icon="MOD_SIMPLIFY")
         row.operator("marble.level_stats", icon="INFO")
+        draw_result(layout, s.design_result)
 
         col = layout.column(align=True)
         col.label(text="Sync with Godot")
+        col.operator("marble.sync_godot", icon="FILE_REFRESH")
         row = col.row(align=True)
         row.operator("marble.export_settings", text="Export", icon="EXPORT")
         row.operator("marble.import_settings", text="Import", icon="IMPORT")
-        col.operator("marble.import_godot_project", icon="FILE_SCRIPT")
-
-        draw_result(layout, s.design_result)
+        draw_result(layout, s.sync_result)
 
 
-CLASSES = (MARBLE_PT_setup, MARBLE_PT_drop, MARBLE_PT_play, MARBLE_PT_design)
+CLASSES = (
+    MARBLE_PT_setup,
+    MARBLE_PT_quickstart,
+    MARBLE_PT_drop,
+    MARBLE_PT_play,
+    MARBLE_PT_physics,
+    MARBLE_PT_design,
+)
 
 
 def register():

@@ -6,10 +6,23 @@ import bpy
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
-from .props import AUTO_RB_PROP, ROLE_PROP
+from .props import AUTO_RB_PROP, BOX_PROP, ROLE_PROP
 
 TOOLS_COLLECTION = "Marble Tools"
-SPAWN_NAME = "Marble Spawn"
+# Object names the game's level_controller.gd looks for in an imported .blend.
+SPAWN_NAME = "spawnbox"
+GAME_BOX_NAMES = {
+    "SPAWN": "spawnbox",
+    "TIMER": "timer-box",
+    "FINISH": "finish-box",
+    "FALL": "fall-box",
+}
+GAME_NAME_TOKENS = {
+    "SPAWN": ("spawn",),
+    "TIMER": ("timer",),
+    "FINISH": ("finish",),
+    "FALL": ("fall", "death", "kill"),
+}
 GEOMETRY_TYPES = {"MESH", "CURVE", "SURFACE", "FONT", "META"}
 
 
@@ -51,8 +64,43 @@ def get_role(obj):
 
 
 def objects_with_role(role, scene=None):
+    """Objects tagged with `role`, plus untagged empties the game would wire by name."""
     scene = scene or bpy.context.scene
-    return [obj for obj in scene.objects if get_role(obj) == role]
+    found = [obj for obj in scene.objects if get_role(obj) == role]
+    tokens = GAME_NAME_TOKENS.get(role)
+    if tokens:
+        for obj in scene.objects:
+            if obj.type != "EMPTY" or get_role(obj) or obj in found:
+                continue
+            lower = obj.name.lower()
+            if any(tok in lower for tok in tokens):
+                found.append(obj)
+    return found
+
+
+def marker_center(marker, radius=0.0):
+    """Marble centre for a marker: the empty's origin, exactly like the game's spawn."""
+    return marker.matrix_world.translation.copy()
+
+
+def marker_radius(marker):
+    return float(marker.get("marble_tools_radius", marker.empty_display_size))
+
+
+def is_box_marker(marker):
+    return bool(marker.get(BOX_PROP, False)) or marker.empty_display_type == "CUBE"
+
+
+def marker_contains(marker, point):
+    """True when `point` is inside the marker's trigger volume (box or sphere)."""
+    if is_box_marker(marker):
+        try:
+            local = marker.matrix_world.inverted() @ point
+        except ValueError:
+            return False
+        size = marker.empty_display_size if marker.type == "EMPTY" else 1.0
+        return abs(local.x) <= size and abs(local.y) <= size and abs(local.z) <= size
+    return (point - marker_center(marker)).length <= marker_radius(marker)
 
 
 def remove_objects(objs):
@@ -85,12 +133,27 @@ def find_spawn(scene=None):
 
 
 def create_spawn(context, location):
+    """The spawnbox empty: its origin is the marble centre, +Y its launch direction."""
     settings = context.scene.marble_tools
     empty = bpy.data.objects.new(SPAWN_NAME, None)
     empty.empty_display_type = "ARROWS"
     empty.empty_display_size = max(settings.marble_radius * 2.0, 0.25)
     empty.location = location
     set_role(empty, "SPAWN")
+    link_to_tools(context, empty)
+    return empty
+
+
+def create_game_box(context, kind, location, half_size):
+    """An empty named the way level_controller.gd expects, sized so Godot's zone = scale * 2."""
+    name = GAME_BOX_NAMES[kind]
+    empty = bpy.data.objects.new(name, None)
+    empty.empty_display_type = "CUBE"
+    empty.empty_display_size = 1.0
+    empty.location = location
+    empty.scale = half_size
+    empty[BOX_PROP] = True
+    set_role(empty, kind)
     link_to_tools(context, empty)
     return empty
 

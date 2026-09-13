@@ -1,4 +1,9 @@
-"""Scene-level settings for the Marble Allstars tools."""
+"""Scene-level settings for the Marble Allstars tools.
+
+The defaults (and the "Marble Allstars" preset) are derived from the game's
+own player.gd / player.tscn / camera_rig.gd. Use "Sync from Godot project" in
+the Level Design panel to refresh them whenever the game code changes.
+"""
 
 import bpy
 from bpy.props import (
@@ -10,70 +15,76 @@ from bpy.props import (
     StringProperty,
 )
 
-# Presets are deliberately approximate. Use "Export / Import settings" in the
-# Level Design panel to keep the numbers in sync with the real Godot project.
+# Values as read from marble-allstars (player.gd / player.tscn / camera_rig.gd):
+#   RigidBody3D mass 1.85, gravity_scale 2.0 (-> 19.6 m/s²), radius 0.5,
+#   PhysicsMaterial friction 0.85 / bounce 0.52 (bounce is 0 while rolling),
+#   ROLL_FORCE 40 (-> 21.6 m/s²), AIR_CONTROL 0.55, MAX_SPEED 12,
+#   JUMP_IMPULSE 19 (-> 10.3 m/s) + JUMP_SPEED_BONUS 8 (-> 4.3 m/s) from 6..18 m/s,
+#   GROUND_DAMP 0.5, COAST_DAMP 0.15, AIR_DAMP 0.35, AIR_DRAG 0.995/frame,
+#   RAMP_KEEP 0.985, FLOW_LIMIT 0.75, SLOPE_BOOST 90, UPHILL_ASSIST 0.8,
+#   ASSIST_MIN_SPEED 10, COYOTE_TIME 0.12, JUMP_BUFFER 0.12,
+#   camera: distance 6, pitch -30, sensitivity 0.1, follow rate 10.
+GAME = {
+    "gravity": 19.6,
+    "fall_gravity_mult": 1.0,
+    "jump_cut": False,
+    "accel": 21.6,
+    "air_accel": 11.9,
+    "max_speed": 12.0,
+    "jump_speed": 10.3,
+    "jump_bonus": 4.3,
+    "jump_bonus_min": 6.0,
+    "jump_bonus_span": 12.0,
+    "coyote_time": 0.12,
+    "jump_buffer": 0.12,
+    "friction": 0.5,
+    "coast_friction": 0.15,
+    "air_friction": 0.35,
+    "air_drag": 0.26,
+    "bounce": 0.52,
+    "ramp_keep": 0.985,
+    "flow_limit": 0.75,
+    "slope_boost": 90.0,
+    "uphill_assist": 0.8,
+    "assist_min_speed": 10.0,
+    "slope_limit": 60.0,
+    "marble_radius": 0.5,
+    "marble_mass": 1.85,
+    "rb_friction": 0.85,
+    "rb_bounciness": 0.52,
+    "cam_distance": 6.0,
+    "cam_height": 0.0,
+    "cam_pitch": -30.0,
+    "mouse_sensitivity": 0.1,
+    "cam_follow_rate": 10.0,
+}
+
 PRESETS = {
-    "SNAPPY": {
-        "label": "Snappy marble (default)",
-        "gravity": 22.0,
-        "fall_gravity_mult": 1.5,
-        "jump_cut": True,
-        "accel": 45.0,
-        "air_accel": 12.0,
-        "max_speed": 16.0,
-        "jump_speed": 8.5,
-        "bounce": 0.3,
-        "friction": 1.5,
-        "rb_friction": 0.6,
-        "rb_bounciness": 0.3,
-    },
-    "MARBLE_BLAST": {
-        "label": "Marble Blast style",
-        "gravity": 20.0,
-        "fall_gravity_mult": 1.0,
-        "jump_cut": False,
-        "accel": 40.0,
-        "air_accel": 8.0,
-        "max_speed": 15.0,
-        "jump_speed": 7.5,
-        "bounce": 0.45,
-        "friction": 1.0,
-        "rb_friction": 0.6,
-        "rb_bounciness": 0.4,
-    },
-    "GODOT": {
-        "label": "Godot stock (9.8 gravity, floaty)",
-        "gravity": 9.8,
-        "fall_gravity_mult": 1.0,
-        "jump_cut": False,
-        "accel": 25.0,
-        "air_accel": 6.0,
-        "max_speed": 12.0,
-        "jump_speed": 6.0,
-        "bounce": 0.15,
-        "friction": 1.2,
-        "rb_friction": 0.5,
-        "rb_bounciness": 0.1,
-    },
-    "HEAVY": {
-        "label": "Heavy (fast falls, short jumps)",
-        "gravity": 30.0,
-        "fall_gravity_mult": 1.6,
-        "jump_cut": True,
-        "accel": 55.0,
-        "air_accel": 10.0,
-        "max_speed": 18.0,
-        "jump_speed": 9.0,
-        "bounce": 0.2,
-        "friction": 2.0,
-        "rb_friction": 0.7,
-        "rb_bounciness": 0.2,
-    },
+    "MARBLE_ALLSTARS": dict(GAME, label="Marble Allstars (from game code)"),
+    "SNAPPY": dict(
+        GAME, label="Snappy (heavier falls, jump cut)",
+        gravity=22.0, fall_gravity_mult=1.5, jump_cut=True, accel=30.0, air_accel=12.0,
+        max_speed=14.0, jump_speed=9.0, jump_bonus=3.0, friction=1.0, coast_friction=0.3,
+    ),
+    "MARBLE_BLAST": dict(
+        GAME, label="Marble Blast style",
+        gravity=20.0, accel=40.0, air_accel=8.0, max_speed=15.0, jump_speed=7.5, jump_bonus=0.0,
+        friction=1.0, coast_friction=1.0, air_friction=0.0, air_drag=0.0, bounce=0.45,
+        ramp_keep=0.0, slope_boost=0.0, rb_friction=0.6, rb_bounciness=0.4,
+    ),
+    "GODOT": dict(
+        GAME, label="Godot stock RigidBody (floaty)",
+        gravity=9.8, accel=25.0, air_accel=6.0, max_speed=12.0, jump_speed=6.0, jump_bonus=0.0,
+        friction=1.2, coast_friction=1.2, air_friction=0.0, air_drag=0.0, bounce=0.15,
+        ramp_keep=0.0, slope_boost=0.0, slope_limit=50.0, marble_mass=1.0,
+        rb_friction=0.5, rb_bounciness=0.1,
+    ),
 }
 
 # Custom property names used to tag generated / tagged objects.
-ROLE_PROP = "marble_tools_role"          # SPAWN, MARBLE, PATH, CHECKPOINT, FINISH, ARC, TARGET
+ROLE_PROP = "marble_tools_role"          # SPAWN, MARBLE, PATH, CHECKPOINT, FINISH, FALL, TIMER, ARC, TARGET
 AUTO_RB_PROP = "marble_tools_auto_rb"    # True on level objects we gave a passive rigid body
+BOX_PROP = "marble_tools_box"            # True on box-shaped zones (Godot: size = scale * 2)
 
 
 class MarbleToolsSettings(bpy.types.PropertyGroup):
@@ -85,24 +96,27 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
         type=bpy.types.Collection,
     )
     marble_radius: FloatProperty(
-        name="Marble Radius", default=0.5, min=0.01, soft_max=5.0, unit="LENGTH",
-        description="Radius of the test marble (match the marble in the game)",
+        name="Marble Radius", default=GAME["marble_radius"], min=0.01, soft_max=5.0, unit="LENGTH",
+        description="Radius of the marble (game: SphereShape3D radius 0.5)",
     )
-    marble_mass: FloatProperty(name="Mass", default=1.0, min=0.001, soft_max=100.0)
+    marble_mass: FloatProperty(
+        name="Mass", default=GAME["marble_mass"], min=0.001, soft_max=100.0,
+        description="Rigid body mass used by the drop tester (game: 1.85)",
+    )
     kill_z: FloatProperty(
         name="Kill Z", default=-50.0, soft_min=-1000.0, soft_max=1000.0, unit="LENGTH",
-        description="Marbles that fall below this height count as 'fell off the level'",
+        description="Fallback kill height when the level has no fall-box (game: fall_y)",
     )
     preset: EnumProperty(
         name="Preset",
         items=[(key, val["label"], "") for key, val in PRESETS.items()],
-        default="SNAPPY",
+        default="MARBLE_ALLSTARS",
     )
 
     # ------------------------------------------------------------ drop tester
     launch_speed: FloatProperty(
         name="Launch Speed", default=0.0, min=0.0, soft_max=60.0,
-        description="Initial speed along the spawn empty's local +Y axis (green arrow). 0 = plain drop",
+        description="Initial speed along the spawn's local +Y axis. 0 = plain drop",
     )
     drop_count: IntProperty(
         name="Marbles", default=1, min=1, max=25,
@@ -120,8 +134,14 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
         name="Substeps / Frame", default=10, min=1, max=100,
         description="Rigid body substeps per frame. Raise if fast marbles tunnel through thin geometry",
     )
-    rb_friction: FloatProperty(name="Friction", default=0.6, min=0.0, max=1.0)
-    rb_bounciness: FloatProperty(name="Bounciness", default=0.3, min=0.0, max=1.0)
+    rb_friction: FloatProperty(
+        name="Friction", default=GAME["rb_friction"], min=0.0, max=1.0,
+        description="Rigid body friction (game PhysicsMaterial friction 0.85)",
+    )
+    rb_bounciness: FloatProperty(
+        name="Bounciness", default=GAME["rb_bounciness"], min=0.0, max=1.0,
+        description="Rigid body restitution (game PhysicsMaterial bounce 0.52)",
+    )
     trace_path: BoolProperty(
         name="Trace Path", default=True,
         description="Create a curve showing where each marble went",
@@ -138,41 +158,96 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
 
     # --------------------------------------------------------------- playtest
     gravity: FloatProperty(
-        name="Gravity", default=22.0, min=0.0, soft_max=60.0,
-        description="m/s². Low values feel floaty; marble games usually run 20-30. Also used by the drop tester",
+        name="Gravity", default=GAME["gravity"], min=0.0, soft_max=60.0,
+        description="m/s² (game: 9.8 x gravity_scale 2.0 = 19.6). Also used by the drop tester",
     )
     fall_gravity_mult: FloatProperty(
-        name="Fall Gravity x", default=1.5, min=1.0, max=4.0,
-        description="Extra gravity while falling so jumps come down faster than they go up (1 = off)",
+        name="Fall Gravity x", default=GAME["fall_gravity_mult"], min=1.0, max=4.0,
+        description="Extra gravity while falling (1 = off, which is what the game does)",
     )
     jump_cut: BoolProperty(
-        name="Jump Cut", default=True,
-        description="Releasing Space early ends the jump sooner (extra gravity applies while still rising)",
+        name="Jump Cut", default=GAME["jump_cut"],
+        description="Releasing Space early ends the jump sooner (off in the game)",
     )
     accel: FloatProperty(
-        name="Ground Accel", default=45.0, min=0.0, soft_max=100.0,
-        description="Acceleration from player input while on the ground (m/s²)",
+        name="Ground Accel", default=GAME["accel"], min=0.0, soft_max=100.0,
+        description="Input acceleration on the ground, m/s² (game: ROLL_FORCE / mass)",
     )
     air_accel: FloatProperty(
-        name="Air Accel", default=12.0, min=0.0, soft_max=50.0,
-        description="Acceleration from player input while airborne (m/s²)",
+        name="Air Accel", default=GAME["air_accel"], min=0.0, soft_max=50.0,
+        description="Input acceleration in the air, m/s² (game: ROLL_FORCE x AIR_CONTROL / mass)",
     )
     max_speed: FloatProperty(
-        name="Max Input Speed", default=16.0, min=0.1, soft_max=60.0,
-        description="Input stops accelerating past this speed (ramps and gravity can still go faster)",
+        name="Max Input Speed", default=GAME["max_speed"], min=0.1, soft_max=60.0,
+        description="Input stops adding speed past this (game MAX_SPEED). Ramps can still go faster",
     )
-    jump_speed: FloatProperty(name="Jump Speed", default=8.5, min=0.0, soft_max=30.0)
-    bounce: FloatProperty(
-        name="Bounce", default=0.3, min=0.0, max=1.0,
-        description="Restitution when hitting surfaces (0 = no bounce)",
+    jump_speed: FloatProperty(
+        name="Jump Speed", default=GAME["jump_speed"], min=0.0, soft_max=30.0,
+        description="Vertical speed added by a jump (game: JUMP_IMPULSE / mass)",
+    )
+    jump_bonus: FloatProperty(
+        name="Jump Speed Bonus", default=GAME["jump_bonus"], min=0.0, soft_max=20.0,
+        description="Extra jump speed at full momentum (game: JUMP_SPEED_BONUS / mass)",
+    )
+    jump_bonus_min: FloatProperty(
+        name="Bonus From", default=GAME["jump_bonus_min"], min=0.0, soft_max=60.0,
+        description="Speed where the jump bonus starts (game JUMP_BONUS_MIN)",
+    )
+    jump_bonus_span: FloatProperty(
+        name="Bonus Span", default=GAME["jump_bonus_span"], min=0.1, soft_max=60.0,
+        description="Speed range over which the bonus ramps to full (game JUMP_BONUS_SPAN)",
+    )
+    coyote_time: FloatProperty(
+        name="Coyote Time", default=GAME["coyote_time"], min=0.0, max=1.0,
+        description="Grace period after leaving the ground where a jump still works",
+    )
+    jump_buffer: FloatProperty(
+        name="Jump Buffer", default=GAME["jump_buffer"], min=0.0, max=1.0,
+        description="A Space press this long before landing fires on landing",
     )
     friction: FloatProperty(
-        name="Rolling Friction", default=1.5, min=0.0, soft_max=10.0,
-        description="Damping applied to the velocity along the surface while grounded",
+        name="Ground Damp", default=GAME["friction"], min=0.0, soft_max=10.0,
+        description="Velocity damping while rolling at cruise speed (game GROUND_DAMP)",
+    )
+    coast_friction: FloatProperty(
+        name="Coast Damp", default=GAME["coast_friction"], min=0.0, soft_max=10.0,
+        description="Damping once you are above Max Input Speed, so earned momentum coasts (game COAST_DAMP)",
+    )
+    air_friction: FloatProperty(
+        name="Air Damp", default=GAME["air_friction"], min=0.0, soft_max=10.0,
+        description="Velocity damping in flight (game AIR_DAMP)",
+    )
+    air_drag: FloatProperty(
+        name="Air Drag (horizontal)", default=GAME["air_drag"], min=0.0, soft_max=5.0,
+        description="Extra horizontal damping in flight per second (game AIR_DRAG 0.995 per frame)",
+    )
+    bounce: FloatProperty(
+        name="Bounce (landings)", default=GAME["bounce"], min=0.0, max=1.0,
+        description="Restitution for airborne landings. Rolling contact never bounces, like the game",
+    )
+    ramp_keep: FloatProperty(
+        name="Ramp Momentum", default=GAME["ramp_keep"], min=0.0, max=1.0,
+        description="How fully speed is re-aimed along a changed floor angle instead of lost (game RAMP_KEEP, 0 = off)",
+    )
+    flow_limit: FloatProperty(
+        name="Flow Limit", default=GAME["flow_limit"], min=0.0, max=1.0,
+        description="Impacts steeper than this fraction of speed bounce instead of flowing (game FLOW_LIMIT)",
+    )
+    slope_boost: FloatProperty(
+        name="Downhill Boost", default=GAME["slope_boost"], min=0.0, soft_max=200.0,
+        description="Extra downhill pull while descending a ramp so ramps convert to speed (game SLOPE_BOOST)",
+    )
+    uphill_assist: FloatProperty(
+        name="Uphill Assist", default=GAME["uphill_assist"], min=0.0, max=2.0,
+        description="Fraction of Downhill Boost that eases climbs while fast (game UPHILL_ASSIST)",
+    )
+    assist_min_speed: FloatProperty(
+        name="Assist From Speed", default=GAME["assist_min_speed"], min=0.0, soft_max=60.0,
+        description="Uphill assist only applies above this horizontal speed (game ASSIST_MIN_SPEED)",
     )
     slope_limit: FloatProperty(
-        name="Slope Limit", default=50.0, min=0.0, max=89.0,
-        description="Surfaces steeper than this (degrees) do not count as ground for jumping",
+        name="Slope Limit", default=GAME["slope_limit"], min=0.0, max=89.0,
+        description="Surfaces steeper than this (degrees) are walls, not ground (game: normal.y < 0.5)",
     )
     physics_hz: IntProperty(
         name="Physics Hz", default=60, min=30, max=240,
@@ -182,14 +257,18 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
         name="Substeps", default=4, min=1, max=16,
         description="Collision substeps per tick. Raise if the marble clips through thin walls",
     )
-    cam_distance: FloatProperty(name="Camera Distance", default=6.0, min=0.5, soft_max=50.0)
-    cam_height: FloatProperty(name="Camera Height", default=1.5, min=-10.0, soft_max=20.0)
-    cam_pitch: FloatProperty(name="Camera Pitch", default=-20.0, min=-89.0, max=89.0)
+    cam_distance: FloatProperty(name="Camera Distance", default=GAME["cam_distance"], min=0.5, soft_max=50.0)
+    cam_height: FloatProperty(name="Camera Height", default=GAME["cam_height"], min=-10.0, soft_max=20.0)
+    cam_pitch: FloatProperty(name="Camera Pitch", default=GAME["cam_pitch"], min=-89.0, max=89.0)
+    cam_follow_rate: FloatProperty(
+        name="Camera Follow", default=GAME["cam_follow_rate"], min=0.0, soft_max=60.0,
+        description="How quickly the camera catches up with the marble (game FOLLOW_RATE, 0 = locked)",
+    )
     mouse_look: BoolProperty(
         name="Mouse Look", default=True,
         description="Rotate the camera with the mouse (Q/E and arrow keys always work too)",
     )
-    mouse_sensitivity: FloatProperty(name="Mouse Sensitivity", default=0.25, min=0.01, max=2.0)
+    mouse_sensitivity: FloatProperty(name="Mouse Sensitivity", default=GAME["mouse_sensitivity"], min=0.01, max=2.0)
     record_play_path: BoolProperty(
         name="Record Path", default=True,
         description="Create a curve of the route you drove after leaving play mode",
@@ -209,9 +288,14 @@ class MarbleToolsSettings(bpy.types.PropertyGroup):
     arc_samples: IntProperty(name="Arc Samples", default=240, min=8, max=2000)
     marker_radius: FloatProperty(
         name="Marker Radius", default=1.5, min=0.1, soft_max=20.0, unit="LENGTH",
-        description="Trigger radius for new checkpoint / finish markers",
+        description="Trigger radius for new checkpoint markers",
+    )
+    box_size: FloatProperty(
+        name="Box Size", default=4.0, min=0.5, soft_max=50.0, unit="LENGTH",
+        description="Edge length of new timer / finish boxes (Godot reads size = scale x 2)",
     )
     design_result: StringProperty(name="Result", default="")
+    sync_result: StringProperty(name="Sync", default="")
 
     # Runtime-only flag so the UI can show the play button state.
     is_playing: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})

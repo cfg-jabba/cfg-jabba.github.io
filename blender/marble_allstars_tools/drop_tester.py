@@ -120,17 +120,12 @@ def apply_initial_velocity(obj, velocity, start_frame, fps):
         pass
 
 
-def marker_center(marker, radius):
-    """Marble centre for a floor-placed marker: local +Z times the marble radius."""
-    return marker.matrix_world @ Vector((0.0, 0.0, radius))
-
-
-def marker_radius(marker):
-    return float(marker.get("marble_tools_radius", marker.empty_display_size))
+marker_center = utils.marker_center
+marker_radius = utils.marker_radius
 
 
 # --------------------------------------------------------------------------- analysis
-def analyse_path(points, fps, settings, finish_markers):
+def analyse_path(points, fps, settings, finish_markers, fall_markers=()):
     """Return a dict of stats for one marble's recorded positions."""
     speeds = [(points[i] - points[i - 1]).length * fps for i in range(1, len(points))]
     max_speed = max(speeds) if speeds else 0.0
@@ -138,16 +133,13 @@ def analyse_path(points, fps, settings, finish_markers):
     max_z = max(p.z for p in points)
     fell_frame = None
     for i, p in enumerate(points):
-        if p.z < settings.kill_z:
+        if p.z < settings.kill_z or any(utils.marker_contains(m, p) for m in fall_markers):
             fell_frame = i
             break
     finish_frame = None
     for i, p in enumerate(points):
-        for marker in finish_markers:
-            if (p - marker_center(marker, settings.marble_radius)).length <= marker_radius(marker):
-                finish_frame = i
-                break
-        if finish_frame is not None:
+        if any(utils.marker_contains(m, p) for m in finish_markers):
+            finish_frame = i
             break
     rest_frame = None
     window = int(fps)
@@ -195,16 +187,19 @@ def summarise(results, fps):
 class MARBLE_OT_add_spawn(bpy.types.Operator):
     bl_idname = "marble.add_spawn"
     bl_label = "Spawn At Cursor"
-    bl_description = ("Create the Marble Spawn empty at the 3D cursor (or move the existing one there). "
-                      "Z arrow = up from the floor, Y arrow = launch direction")
+    bl_description = ("Create the spawnbox empty at the 3D cursor (or move the existing one there). "
+                      "Its origin is the marble centre, like the game; Y arrow = launch direction")
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        settings = get_settings(context)
+        # Lift the marble centre off the floor so it does not start half-buried.
+        location = context.scene.cursor.location.copy() + Vector((0.0, 0.0, settings.marble_radius))
         spawn = utils.find_spawn(context.scene)
         if spawn is None:
-            spawn = utils.create_spawn(context, context.scene.cursor.location.copy())
+            spawn = utils.create_spawn(context, location)
         else:
-            spawn.location = context.scene.cursor.location.copy()
+            spawn.location = location
         for obj in context.selected_objects:
             obj.select_set(False)
         spawn.select_set(True)
@@ -328,10 +323,11 @@ class MARBLE_OT_drop(bpy.types.Operator):
                 paths[m.name].append(m.matrix_world.translation.copy())
 
         finish_markers = utils.objects_with_role("FINISH", scene)
+        fall_markers = utils.objects_with_role("FALL", scene)
         results = []
         for i, m in enumerate(marbles):
             pts = paths[m.name]
-            results.append(analyse_path(pts, fps, settings, finish_markers))
+            results.append(analyse_path(pts, fps, settings, finish_markers, fall_markers))
             if settings.trace_path and len(pts) > 1:
                 color = PATH_COLORS[i % len(PATH_COLORS)]
                 curve = utils.make_path_curve(

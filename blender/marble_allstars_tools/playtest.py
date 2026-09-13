@@ -2,8 +2,16 @@
 
 The physics is a small fixed-timestep loop (Godot style: 60 ticks/s by default)
 written in plain Python on top of mathutils' BVHTree for sphere-vs-level
-collision. It is intentionally simple and fully tunable from the sidebar so the
-feel can be matched to the real game by copying the numbers over.
+collision. It mirrors the rules in the game's player.gd:
+
+* camera-relative WASD force, gated by MAX_SPEED on the ground, weaker in the air
+* ground damping that fades to a lighter "coast" damping above the input cap,
+  air damping plus horizontal air drag in flight
+* jump impulse with a momentum bonus, coyote time and an input buffer
+* bounce only on airborne landings, never while rolling
+* ramp momentum: when the floor angle changes, speed is re-aimed along the new
+  surface instead of being lost (RAMP_KEEP / FLOW_LIMIT)
+* downhill boost while descending ramps, uphill assist while fast
 
 Controls (while playing, mouse over the 3D viewport):
     W A S D / arrows   move (relative to the camera)
@@ -21,12 +29,12 @@ import bpy
 from mathutils import Euler, Quaternion, Vector
 
 from . import utils
-from .drop_tester import marker_center, marker_radius
 from .props import get_settings
 
 MARBLE_NAME = "Marble (play)"
 PATH_NAME = "Play Path"
 UP = Vector((0.0, 0.0, 1.0))
+DOWN = Vector((0.0, 0.0, -1.0))
 MOVE_KEYS = {
     "W": (1.0, 0.0), "UP_ARROW": (1.0, 0.0),
     "S": (-1.0, 0.0), "DOWN_ARROW": (-1.0, 0.0),
@@ -36,8 +44,12 @@ MOVE_KEYS = {
 MAX_PATH_POINTS = 20000
 
 
+def _clamp(v, lo, hi):
+    return lo if v < lo else hi if v > hi else v
+
+
 class MarblePhysics:
-    """Sphere character controller against a BVHTree. No Blender objects inside."""
+    """Sphere controller against a BVHTree, following player.gd. No Blender objects inside."""
 
     def __init__(self, bvh, radius, params):
         self.bvh = bvh
@@ -50,43 +62,46 @@ class MarblePhysics:
         self.omega = Vector((0.0, 0.0, 0.0))
         self.on_ground = False
         self.ground_normal = UP.copy()
-        self.coyote = 0.0
+        self.time_since_grounded = 999.0
+        self.jump_buffer = -1.0
+        self.jump_released = True
         self.jumping = False
+        self.redirect_grace = 0.0
+        self.air_time = 0.0
         self.max_speed_seen = 0.0
         self.jumps = 0
-        self.air_time = 0.0
         self.max_air_time = 0.0
-        self._cos_slope = math.cos(math.radians(params["slope_limit"]))
+        self._cos_slope = math.cos(math.radians(params.get("slope_limit", 60.0)))
 
     def reset(self, pos):
         self.pos = pos.copy()
         self.vel = Vector((0.0, 0.0, 0.0))
         self.omega = Vector((0.0, 0.0, 0.0))
         self.on_ground = False
-        self.coyote = 0.0
+        self.time_since_grounded = 999.0
+        self.jump_buffer = -1.0
+        self.jump_released = True
         self.jumping = False
+        self.redirect_grace = 0.0
         self.air_time = 0.0
 
-    def step(self, dt, move_dir, jump, jump_held=None):
+    # ------------------------------------------------------------------ stepping
+    def step(self, dt, move_dir, jump_held, **_ignored):
         """Advance one physics tick. Returns 'FELL' when below the kill plane.
 
-        `jump` requests a jump this tick; `jump_held` says whether the jump key is
-        still down (used for jump-cut). Defaults to the same as `jump`.
+        `jump_held` is the current state of the jump key; presses are detected
+        inside (with an input buffer), exactly like the game.
         """
-        if jump_held is None:
-            jump_held = jump
-        substeps = max(1, int(self.p["substeps"]))
+        substeps = max(1, int(self.p.get("substeps", 4)))
         sub_dt = dt / substeps
         status = None
         for _ in range(substeps):
-            result = self._substep(sub_dt, move_dir, jump, jump_held)
-            jump = False
+            result = self._substep(sub_dt, move_dir, jump_held)
             if result:
                 status = result
         return status
 
     def _gravity_scale(self, jump_held):
-        """Heavier gravity while falling (and while rising after an early jump release)."""
         mult = self.p.get("fall_gravity_mult", 1.0)
         if mult <= 1.0 or self.on_ground:
             return 1.0
@@ -96,43 +111,78 @@ class MarblePhysics:
             return mult
         return 1.0
 
-    def _substep(self, dt, move_dir, jump, jump_held=True):
+    def _substep(self, dt, move_dir, jump_held):
         p = self.p
-        # --- player input
+        grounded = self.on_ground
+        n = self.ground_normal
+
+        # --- downhill boost / uphill assist (player.gd SLOPE_BOOST block)
+        boost = p.get("slope_boost", 0.0)
+        if grounded and boost > 0.0:
+            slope = 1.0 - n.z
+            if slope > 0.05:
+                ramp_amt = _clamp((n.z - 0.30) / 0.35, 0.0, 1.0)
+                down_tan = DOWN - n * DOWN.dot(n)
+                if down_tan.length > 0.01 and ramp_amt > 0.0:
+                    down_tan.normalize()
+                    along = self.vel.dot(down_tan)
+                    hsp = Vector((self.vel.x, self.vel.y, 0.0)).length
+                    if along > 1.0:
+                        self.vel += down_tan * (boost * slope * ramp_amt * dt)
+                    elif along < -1.0 and hsp > p.get("assist_min_speed", 10.0):
+                        self.vel -= down_tan * (boost * slope * ramp_amt * p.get("uphill_assist", 0.0) * dt)
+
+        # --- player input (horizontal, camera relative; the game applies it flat too)
         if move_dir.length_squared > 1e-8:
-            if self.on_ground:
-                n = self.ground_normal
-                d = move_dir - n * move_dir.dot(n)
-                accel = p["accel"]
+            d = Vector((move_dir.x, move_dir.y, 0.0)).normalized()
+            if grounded:
+                hv = Vector((self.vel.x, self.vel.y, 0.0))
+                if hv.dot(d) < p["max_speed"]:
+                    self.vel += d * (p["accel"] * dt)
             else:
-                d = move_dir
-                accel = p["air_accel"]
-            if d.length_squared > 1e-8:
-                d.normalize()
-                along = self.vel.dot(d)
-                if along < p["max_speed"]:
-                    self.vel += d * min(accel * dt, p["max_speed"] - along)
+                self.vel += d * (p["air_accel"] * dt)
 
-        # --- rolling friction while grounded
-        if self.on_ground and p["friction"] > 0.0:
-            n = self.ground_normal
-            vn = self.vel.dot(n)
-            vt = self.vel - n * vn
-            self.vel = vt * max(0.0, 1.0 - p["friction"] * dt) + n * vn
+        # --- damping (Godot linear_damp semantics: v *= 1 - damp * dt)
+        if grounded:
+            hs = Vector((self.vel.x, self.vel.y, 0.0)).length
+            over = _clamp((hs - p["max_speed"]) / p["max_speed"], 0.0, 1.0)
+            damp = p["friction"] + (p.get("coast_friction", p["friction"]) - p["friction"]) * over
+            self.vel *= max(0.0, 1.0 - damp * dt)
+        else:
+            self.vel *= max(0.0, 1.0 - p.get("air_friction", 0.0) * dt)
+            drag = max(0.0, 1.0 - p.get("air_drag", 0.0) * dt)
+            self.vel.x *= drag
+            self.vel.y *= drag
 
-        # --- jump
-        if jump and (self.on_ground or self.coyote > 0.0):
-            n = self.ground_normal if self.on_ground else UP
-            jdir = (UP + n).normalized()
-            vj = self.vel.dot(jdir)
-            if vj < p["jump_speed"]:
-                self.vel += jdir * (p["jump_speed"] - vj)
-            self.on_ground = False
-            self.coyote = 0.0
-            self.jumps += 1
+        # --- jump: coyote time + input buffer (player.gd)
+        if grounded:
+            self.time_since_grounded = 0.0
+        else:
+            self.time_since_grounded += dt
+        self.jump_buffer = max(self.jump_buffer - dt, -1.0)
+        if jump_held:
+            if self.jump_released:
+                self.jump_buffer = p.get("jump_buffer", 0.0) + 1e-6
+                self.jump_released = False
+        else:
+            self.jump_released = True
+        can_jump = grounded or self.time_since_grounded < p.get("coyote_time", 0.0)
+        if can_jump and self.jump_buffer > 0.0:
+            is_wall = n.z < 0.5
+            jdir = UP if not is_wall else (UP * 0.88 + n * 0.30).normalized()
+            momentum = self.vel.length
+            span = max(p.get("jump_bonus_span", 1.0), 1e-6)
+            bonus = _clamp((momentum - p.get("jump_bonus_min", 0.0)) / span, 0.0, 1.0) * p.get("jump_bonus", 0.0)
+            self.vel += jdir * (p["jump_speed"] + bonus)
+            self.jump_buffer = -1.0
+            self.time_since_grounded = p.get("coyote_time", 0.0)
+            self.redirect_grace = 0.2
             self.jumping = True
+            self.jumps += 1
+            self.on_ground = False
+            grounded = False
 
-        # --- gravity (heavier on the way down so jumps do not float)
+        # --- gravity
         self.vel.z -= p["gravity"] * self._gravity_scale(jump_held) * dt
 
         # --- integrate with a tunnelling guard for fast movement
@@ -148,6 +198,7 @@ class MarblePhysics:
         self.pos += disp
 
         # --- resolve contacts (a few nearest-point iterations handle corners)
+        airborne_landing = self.air_time > 0.05
         self.on_ground = False
         best_normal = None
         if self.bvh is not None:
@@ -157,31 +208,45 @@ class MarblePhysics:
                     break
                 push = self.pos - loc
                 if push.length > 1e-6:
-                    n = push.normalized()
+                    cn = push.normalized()
                 else:
-                    n = face_normal if face_normal.dot(UP) >= 0 else -face_normal
+                    cn = face_normal if face_normal.dot(UP) >= 0 else -face_normal
                 pen = self.radius - d
                 if pen > 0.0:
-                    self.pos += n * pen
-                vn = self.vel.dot(n)
+                    self.pos += cn * pen
+                is_ground = cn.z >= self._cos_slope
+                vn = self.vel.dot(cn)
                 if vn < 0.0:
-                    self.vel -= n * vn * (1.0 + p["bounce"])
-                if n.z >= self._cos_slope:
+                    speed = self.vel.length
+                    into = -vn
+                    keep = p.get("ramp_keep", 0.0)
+                    if (is_ground and keep > 0.0 and self.redirect_grace <= 0.0
+                            and speed > 6.0 and into < speed * p.get("flow_limit", 0.0)):
+                        # Ramp momentum: re-aim along the surface, keep the speed.
+                        v_tan = self.vel + cn * into
+                        if v_tan.length > 0.01:
+                            self.vel = self.vel.lerp(v_tan.normalized() * speed, keep)
+                        vn2 = self.vel.dot(cn)
+                        if vn2 < 0.0:
+                            self.vel -= cn * vn2
+                    else:
+                        bounce = p.get("bounce", 0.0) if airborne_landing else 0.0
+                        self.vel -= cn * (vn * (1.0 + bounce))
+                if is_ground:
                     self.on_ground = True
-                    if best_normal is None or n.z > best_normal.z:
-                        best_normal = n
+                    if best_normal is None or cn.z > best_normal.z:
+                        best_normal = cn
                 if pen <= 0.0:
                     break
 
+        self.redirect_grace = max(0.0, self.redirect_grace - dt)
         if self.on_ground:
             self.ground_normal = best_normal
-            self.coyote = 0.1
             self.jumping = False
             if self.air_time > 0.0:
                 self.max_air_time = max(self.max_air_time, self.air_time)
             self.air_time = 0.0
         else:
-            self.coyote = max(0.0, self.coyote - dt)
             self.air_time += dt
 
         # --- visual rolling (rolling without slipping on the contact normal)
@@ -192,28 +257,25 @@ class MarblePhysics:
             self.rot = Quaternion(self.omega.normalized(), angle) @ self.rot
             self.rot.normalize()
 
-        speed = self.vel.length
-        self.max_speed_seen = max(self.max_speed_seen, speed)
+        self.max_speed_seen = max(self.max_speed_seen, self.vel.length)
         if self.pos.z < p["kill_z"]:
             return "FELL"
         return None
 
 
+PARAM_NAMES = (
+    "gravity", "fall_gravity_mult", "jump_cut", "accel", "air_accel", "max_speed",
+    "jump_speed", "jump_bonus", "jump_bonus_min", "jump_bonus_span", "coyote_time",
+    "jump_buffer", "friction", "coast_friction", "air_friction", "air_drag", "bounce",
+    "ramp_keep", "flow_limit", "slope_boost", "uphill_assist", "assist_min_speed",
+    "slope_limit", "kill_z",
+)
+
+
 def params_from_settings(settings):
-    return {
-        "gravity": settings.gravity,
-        "fall_gravity_mult": settings.fall_gravity_mult,
-        "jump_cut": settings.jump_cut,
-        "accel": settings.accel,
-        "air_accel": settings.air_accel,
-        "max_speed": settings.max_speed,
-        "jump_speed": settings.jump_speed,
-        "bounce": settings.bounce,
-        "friction": settings.friction,
-        "slope_limit": settings.slope_limit,
-        "substeps": settings.physics_substeps,
-        "kill_z": settings.kill_z,
-    }
+    params = {name: getattr(settings, name) for name in PARAM_NAMES}
+    params["substeps"] = settings.physics_substeps
+    return params
 
 
 def camera_rotation(yaw, pitch_deg):
@@ -249,7 +311,6 @@ class MARBLE_OT_playtest(bpy.types.Operator):
     # ------------------------------------------------------------------ lifecycle
     def invoke(self, context, event):
         settings = get_settings(context)
-        # The button lives in the sidebar, so resolve the main viewport region explicitly.
         space = context.space_data
         rv3d = getattr(space, "region_3d", None) or context.region_data
         region = next((r for r in context.area.regions if r.type == "WINDOW"), context.region)
@@ -270,12 +331,13 @@ class MARBLE_OT_playtest(bpy.types.Operator):
 
         spawn = utils.get_or_create_spawn(context)
         self.radius = settings.marble_radius
-        self.start_pos = marker_center(spawn, self.radius)
+        self.start_pos = utils.marker_center(spawn, self.radius)
         self.respawn_pos = self.start_pos.copy()
         fwd = utils.spawn_launch_direction(spawn)
         self.yaw = math.atan2(-fwd.x, fwd.y)
         self.pitch = settings.cam_pitch
         self.cam_distance = settings.cam_distance
+        self.cam_target = self.start_pos.copy()
 
         self.phys = MarblePhysics(bvh, self.radius, params_from_settings(settings))
         self.phys.reset(self.start_pos)
@@ -284,16 +346,20 @@ class MARBLE_OT_playtest(bpy.types.Operator):
         self.marble.rotation_mode = "QUATERNION"
         self._sync_marble()
 
-        self.checkpoints = utils.objects_with_role("CHECKPOINT", context.scene)
-        self.finishes = utils.objects_with_role("FINISH", context.scene)
+        scene = context.scene
+        self.checkpoints = utils.objects_with_role("CHECKPOINT", scene)
+        self.finishes = utils.objects_with_role("FINISH", scene)
+        self.fall_boxes = utils.objects_with_role("FALL", scene)
+        self.timer_boxes = utils.objects_with_role("TIMER", scene)
         self.checkpoint_hit = set()
+        self.timer_running = not self.timer_boxes
         self.finish_time = None
         self.deaths = 0
         self.run_time = 0.0
         self.tick_count = 0
         self.path = [self.start_pos.copy()]
         self.keys = set()
-        self.status = ""
+        self.status = "" if self.timer_running else "Timer starts at the timer-box"
 
         self.area = context.area
         self.region = region
@@ -319,7 +385,7 @@ class MARBLE_OT_playtest(bpy.types.Operator):
         if self.mouse_look:
             context.window.cursor_modal_set("NONE")
             self._warp_center(context)
-        self._update_view()
+        self._update_view(0.0)
         self._hud(context)
         self.report({"INFO"}, f"Play mode: {tri_count} level polygons. Esc to stop.")
         return {"RUNNING_MODAL"}
@@ -387,9 +453,9 @@ class MARBLE_OT_playtest(bpy.types.Operator):
             return
         sens = settings.mouse_sensitivity
         self.yaw -= math.radians(dx * sens)
-        self.pitch = max(-85.0, min(85.0, self.pitch + dy * sens))
+        self.pitch = max(-75.0, min(70.0, self.pitch + dy * sens))
         self._warp_center(context)
-        self._update_view()
+        self._update_view(0.0)
 
     def _region_center(self):
         return (self.region.x + self.region.width // 2, self.region.y + self.region.height // 2)
@@ -412,9 +478,9 @@ class MARBLE_OT_playtest(bpy.types.Operator):
         if "E" in keys:
             self.yaw -= yaw_rate
         if "PAGE_UP" in keys:
-            self.pitch = min(85.0, self.pitch + 60.0 * frame_time)
+            self.pitch = min(70.0, self.pitch + 60.0 * frame_time)
         if "PAGE_DOWN" in keys:
-            self.pitch = max(-85.0, self.pitch - 60.0 * frame_time)
+            self.pitch = max(-75.0, self.pitch - 60.0 * frame_time)
 
         _rot, forward, right = camera_basis(self.yaw, self.pitch)
         fwd_amt = 0.0
@@ -426,16 +492,17 @@ class MARBLE_OT_playtest(bpy.types.Operator):
         move_dir = forward * fwd_amt + right * right_amt
         if move_dir.length > 1.0:
             move_dir.normalize()
-        jump = "SPACE" in keys
+        jump_held = "SPACE" in keys
 
         stepped = False
         while self.accum >= self.dt:
             self.accum -= self.dt
-            self.run_time += self.dt
+            if self.timer_running and self.finish_time is None:
+                self.run_time += self.dt
             self.tick_count += 1
-            result = self.phys.step(self.dt, move_dir, jump, jump_held=jump)
+            result = self.phys.step(self.dt, move_dir, jump_held)
             stepped = True
-            if result == "FELL":
+            if result == "FELL" or self._in_any(self.fall_boxes):
                 self.deaths += 1
                 self._respawn(full_reset=False)
                 self.status = "Fell off the level!"
@@ -446,24 +513,29 @@ class MARBLE_OT_playtest(bpy.types.Operator):
 
         if stepped:
             self._sync_marble()
-            self._update_view()
+            self._update_view(frame_time)
             self._hud(context)
+
+    def _in_any(self, markers):
+        pos = self.phys.pos
+        return any(utils.marker_contains(m, pos) for m in markers)
 
     def _check_markers(self):
         pos = self.phys.pos
+        if not self.timer_running and self._in_any(self.timer_boxes):
+            self.timer_running = True
+            self.run_time = 0.0
+            self.status = "Timer started"
         for cp in self.checkpoints:
             if cp.name in self.checkpoint_hit:
                 continue
-            if (pos - marker_center(cp, self.radius)).length <= marker_radius(cp):
+            if utils.marker_contains(cp, pos):
                 self.checkpoint_hit.add(cp.name)
-                self.respawn_pos = marker_center(cp, self.radius)
+                self.respawn_pos = utils.marker_center(cp, self.radius)
                 self.status = f"Checkpoint: {cp.name}"
-        if self.finish_time is None:
-            for fin in self.finishes:
-                if (pos - marker_center(fin, self.radius)).length <= marker_radius(fin):
-                    self.finish_time = self.run_time
-                    self.status = f"FINISH in {self.finish_time:.2f}s"
-                    break
+        if self.finish_time is None and self._in_any(self.finishes):
+            self.finish_time = self.run_time
+            self.status = f"FINISH in {self.finish_time:.2f}s"
 
     def _respawn(self, full_reset):
         if full_reset:
@@ -471,22 +543,29 @@ class MARBLE_OT_playtest(bpy.types.Operator):
             self.checkpoint_hit.clear()
             self.finish_time = None
             self.run_time = 0.0
+            self.timer_running = not self.timer_boxes
             self.status = "Reset"
         self.phys.reset(self.respawn_pos)
+        self.cam_target = self.phys.pos.copy()
 
     def _sync_marble(self):
         self.marble.location = self.phys.pos
         self.marble.rotation_quaternion = self.phys.rot
 
-    def _update_view(self):
+    def _update_view(self, frame_time):
+        settings = get_settings()
+        rate = settings.cam_follow_rate
+        target = self.phys.pos + Vector((0.0, 0.0, settings.cam_height))
+        if rate <= 0.0 or frame_time <= 0.0:
+            self.cam_target = target
+        else:
+            t = min(1.0, rate * frame_time)
+            self.cam_target = self.cam_target.lerp(target, t)
         rot, _f, _r = camera_basis(self.yaw, self.pitch)
         self.rv3d.view_rotation = rot
-        self.rv3d.view_location = self.phys.pos + Vector((0.0, 0.0, self.p_cam_height()))
+        self.rv3d.view_location = self.cam_target
         self.rv3d.view_distance = self.cam_distance
         self.area.tag_redraw()
-
-    def p_cam_height(self):
-        return get_settings().cam_height
 
     def _hud(self, context):
         speed = self.phys.vel.length
@@ -552,7 +631,7 @@ class MARBLE_OT_playtest(bpy.types.Operator):
 
         finish = f"finish {self.finish_time:.2f}s" if self.finish_time is not None else "no finish"
         settings.play_result = (
-            f"{self.run_time:.1f}s played | {finish} | deaths {self.deaths} | "
+            f"{self.run_time:.1f}s on the clock | {finish} | deaths {self.deaths} | "
             f"max {self.phys.max_speed_seen:.1f} m/s | jumps {self.phys.jumps} | "
             f"longest air {self.phys.max_air_time:.2f}s"
         )

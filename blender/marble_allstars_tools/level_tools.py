@@ -1,24 +1,33 @@
-"""Level design helpers: markers, jump arcs, speed solver, ramp info, stats, JSON sync."""
+"""Level design helpers: game boxes, markers, jump arcs, speed solver, ramp info,
+stats, and syncing the physics numbers from the Godot project."""
 
 import json
 import math
 import os
+import re
 
 import bpy
 from bpy.props import EnumProperty, StringProperty
 from mathutils import Vector
 
 from . import utils
-from .drop_tester import marker_center
 from .props import get_settings
+from .utils import marker_center
 
 ARC_NAME = "Jump Arc"
+TUTORIAL_URL = "https://github.com/cfg-jabba/cfg-jabba.github.io/blob/main/blender/TUTORIAL.md"
 MARKER_TYPES = [
     ("CHECKPOINT", "Checkpoint", "Respawn point once touched during a playtest"),
-    ("FINISH", "Finish", "Touching this ends the run and records the time"),
     ("TARGET", "Jump Target", "Landing spot used by the launch-speed solver"),
 ]
-SETTINGS_SKIP = {"level_collection", "drop_result", "play_result", "design_result", "is_playing", "preset"}
+GAME_BOX_TYPES = [
+    ("SPAWN", "Spawn", "spawnbox: where the marble starts (its origin is the marble centre)"),
+    ("TIMER", "Timer", "timer-box: the run clock starts when the marble enters it"),
+    ("FINISH", "Finish", "finish-box: entering it ends the run"),
+    ("FALL", "Fall", "fall-box: a slab under the level that respawns the marble (auto-sized)"),
+]
+SETTINGS_SKIP = {"level_collection", "drop_result", "play_result", "design_result", "sync_result",
+                 "is_playing", "preset"}
 
 
 # --------------------------------------------------------------------------- physics maths
@@ -64,7 +73,6 @@ def solve_launch_speed(origin, direction, target, gravity):
     dz = direction.z
     if dist_h < 1e-6 or dh < 1e-6:
         return None
-    # Only the component of horizontal distance along the launch heading counts.
     along = dh_vec.dot(dir_h.normalized())
     if along <= 0.0:
         return None
@@ -77,36 +85,93 @@ def solve_launch_speed(origin, direction, target, gravity):
     return math.sqrt(v2)
 
 
-# --------------------------------------------------------------------------- operators
+def _select_only(context, obj):
+    for other in context.selected_objects:
+        other.select_set(False)
+    obj.select_set(True)
+    context.view_layer.objects.active = obj
+
+
+# --------------------------------------------------------------------------- game boxes
+class MARBLE_OT_add_game_box(bpy.types.Operator):
+    bl_idname = "marble.add_game_box"
+    bl_label = "Add Game Box"
+    bl_description = ("Add (or move) one of the zones the game wires by name: spawnbox, timer-box, "
+                      "finish-box, fall-box. Sized so Godot's zone = scale x 2")
+    bl_options = {"REGISTER", "UNDO"}
+
+    kind: EnumProperty(name="Kind", items=GAME_BOX_TYPES, default="FINISH")
+
+    def execute(self, context):
+        settings = get_settings(context)
+        scene = context.scene
+        cursor = scene.cursor.location.copy()
+
+        if self.kind == "SPAWN":
+            bpy.ops.marble.add_spawn()
+            self.report({"INFO"}, "spawnbox placed at the cursor (marble centre)")
+            return {"FINISHED"}
+
+        existing = utils.objects_with_role(self.kind, scene)
+        if self.kind == "FALL":
+            lo, hi = utils.level_bounds(context)
+            if lo is None:
+                location = cursor + Vector((0.0, 0.0, -10.0))
+                half = Vector((60.0, 60.0, 5.0))
+            else:
+                margin = 20.0
+                half = Vector(((hi.x - lo.x) * 0.5 + margin, (hi.y - lo.y) * 0.5 + margin, 5.0))
+                location = Vector(((lo.x + hi.x) * 0.5, (lo.y + hi.y) * 0.5, lo.z - 10.0 - half.z))
+            note = f"fall-box under the level, top at z={location.z + half.z:.1f}"
+        else:
+            h = settings.box_size * 0.5
+            half = Vector((h, h, h))
+            location = cursor + Vector((0.0, 0.0, h))
+            note = f"{utils.GAME_BOX_NAMES[self.kind]} at the cursor, {settings.box_size:.1f} m"
+
+        if existing:
+            box = existing[0]
+            box.location = location
+            box.scale = half
+            if box.type == "EMPTY":
+                box.empty_display_type = "CUBE"
+                box.empty_display_size = 1.0
+            box[utils.BOX_PROP] = True
+        else:
+            box = utils.create_game_box(context, self.kind, location, half)
+        _select_only(context, box)
+        self.report({"INFO"}, note)
+        return {"FINISHED"}
+
+
 class MARBLE_OT_add_marker(bpy.types.Operator):
     bl_idname = "marble.add_marker"
     bl_label = "Add Marker"
-    bl_description = "Add a checkpoint, finish or jump-target marker at the 3D cursor"
+    bl_description = "Add a checkpoint or jump-target marker at the 3D cursor"
     bl_options = {"REGISTER", "UNDO"}
 
     marker_type: EnumProperty(name="Type", items=MARKER_TYPES, default="CHECKPOINT")
 
     def execute(self, context):
         settings = get_settings(context)
-        names = {"CHECKPOINT": "Checkpoint", "FINISH": "Finish", "TARGET": "Jump Target"}
+        names = {"CHECKPOINT": "Checkpoint", "TARGET": "Jump Target"}
         empty = bpy.data.objects.new(names[self.marker_type], None)
         if self.marker_type == "TARGET":
             empty.empty_display_type = "PLAIN_AXES"
             empty.empty_display_size = max(settings.marble_radius, 0.25)
+            empty.location = context.scene.cursor.location.copy() + Vector((0.0, 0.0, settings.marble_radius))
         else:
             empty.empty_display_type = "SPHERE"
             empty.empty_display_size = settings.marker_radius
             empty["marble_tools_radius"] = settings.marker_radius
-        empty.location = context.scene.cursor.location.copy()
+            empty.location = context.scene.cursor.location.copy() + Vector((0.0, 0.0, settings.marble_radius))
         utils.set_role(empty, self.marker_type)
         utils.link_to_tools(context, empty)
-        for obj in context.selected_objects:
-            obj.select_set(False)
-        empty.select_set(True)
-        context.view_layer.objects.active = empty
+        _select_only(context, empty)
         return {"FINISHED"}
 
 
+# --------------------------------------------------------------------------- jumps
 class MARBLE_OT_jump_arc(bpy.types.Operator):
     bl_idname = "marble.jump_arc"
     bl_label = "Preview Jump Arc"
@@ -169,7 +234,7 @@ class MARBLE_OT_solve_jump_speed(bpy.types.Operator):
         spawn = utils.get_or_create_spawn(context)
         targets = utils.objects_with_role("TARGET", context.scene)
         if not targets:
-            self.report({"ERROR"}, "Add a Jump Target marker first (Level Design > Add Marker > Jump Target)")
+            self.report({"ERROR"}, "Add a Jump Target marker first (Level Design > Markers > Target)")
             return {"CANCELLED"}
         radius = settings.marble_radius
         origin = marker_center(spawn, radius)
@@ -192,11 +257,12 @@ class MARBLE_OT_solve_jump_speed(bpy.types.Operator):
         return {"FINISHED"}
 
 
+# --------------------------------------------------------------------------- inspect
 class MARBLE_OT_ramp_info(bpy.types.Operator):
     bl_idname = "marble.ramp_info"
     bl_label = "Ramp Info"
     bl_description = ("Report the slope angle, downhill direction and speed gained for the selected "
-                      "faces (Edit Mode) or the whole active mesh (Object Mode)")
+                      "faces (Edit Mode) or the rollable faces of the active mesh (Object Mode)")
     bl_options = {"REGISTER"}
 
     @classmethod
@@ -221,7 +287,6 @@ class MARBLE_OT_ramp_info(bpy.types.Operator):
             bm.normal_update()
             faces = list(bm.faces)
             label = f"all {len(faces)} faces of {obj.name}"
-            # Closed meshes cancel out, so only look at the surfaces a marble can roll on.
             up_faces = [f for f in faces if (nmat @ f.normal).z > 0.5]  # flatter than 60°
             if up_faces:
                 faces = up_faces
@@ -254,7 +319,8 @@ class MARBLE_OT_ramp_info(bpy.types.Operator):
         if downhill.length > 1e-6:
             downhill.normalize()
             heading = f" | downhill heading {math.degrees(math.atan2(downhill.y, downhill.x)):.0f}°"
-        result = (f"{label}: slope {slope:.1f}° | height {height:.2f} m{heading} | "
+        wall = " | WALL (steeper than slope limit)" if slope > settings.slope_limit else ""
+        result = (f"{label}: slope {slope:.1f}°{wall} | height {height:.2f} m{heading} | "
                   f"speed gained from rest: {v_roll:.1f} m/s rolling, {v_slide:.1f} m/s sliding "
                   f"(no friction)")
         settings.design_result = result
@@ -265,17 +331,18 @@ class MARBLE_OT_ramp_info(bpy.types.Operator):
 class MARBLE_OT_level_stats(bpy.types.Operator):
     bl_idname = "marble.level_stats"
     bl_label = "Level Stats"
-    bl_description = "Polygon count, bounds and common physics gotchas for the level geometry"
+    bl_description = "Polygon count, bounds, which game boxes exist, and common physics gotchas"
     bl_options = {"REGISTER"}
 
     def execute(self, context):
         settings = get_settings(context)
+        scene = context.scene
         objs = utils.get_level_objects(context)
         if not objs:
             settings.design_result = "No level geometry found"
             self.report({"WARNING"}, settings.design_result)
             return {"CANCELLED"}
-        bvh, tri_count = utils.build_level_bvh(context, objs)
+        _bvh, tri_count = utils.build_level_bvh(context, objs)
         lo, hi = utils.level_bounds(context, objs)
         size = hi - lo
         warnings = []
@@ -287,8 +354,12 @@ class MARBLE_OT_level_stats(bpy.types.Operator):
                 warnings.append(f"{obj.name}: unapplied scale")
             if obj.type != "MESH":
                 warnings.append(f"{obj.name}: {obj.type.lower()} (drop tester needs meshes)")
+        boxes = []
+        for kind in ("SPAWN", "TIMER", "FINISH", "FALL"):
+            have = utils.objects_with_role(kind, scene)
+            boxes.append(f"{utils.GAME_BOX_NAMES[kind]} {'ok' if have else 'MISSING'}")
         result = (f"{len(objs)} objects, {tri_count} polygons | size {size.x:.1f} x {size.y:.1f} x "
-                  f"{size.z:.1f} m | z from {lo.z:.1f} to {hi.z:.1f} (kill z {settings.kill_z:.0f})")
+                  f"{size.z:.1f} m | z from {lo.z:.1f} to {hi.z:.1f} | " + ", ".join(boxes))
         if warnings:
             result += " | WARN " + "; ".join(warnings[:6])
             if len(warnings) > 6:
@@ -307,6 +378,16 @@ class MARBLE_OT_clear_design(bpy.types.Operator):
     def execute(self, context):
         utils.remove_objects(utils.objects_with_role("ARC", context.scene))
         get_settings(context).design_result = ""
+        return {"FINISHED"}
+
+
+class MARBLE_OT_open_tutorial(bpy.types.Operator):
+    bl_idname = "marble.open_tutorial"
+    bl_label = "Open Tutorial"
+    bl_description = "Open the step-by-step tutorial in your browser"
+
+    def execute(self, context):
+        bpy.ops.wm.url_open(url=TUTORIAL_URL)
         return {"FINISHED"}
 
 
@@ -339,7 +420,7 @@ def dict_to_settings(settings, data):
 class MARBLE_OT_export_settings(bpy.types.Operator):
     bl_idname = "marble.export_settings"
     bl_label = "Export Settings (.json)"
-    bl_description = "Save all physics / tool settings to a JSON file (share it with the Godot project)"
+    bl_description = "Save all physics / tool settings to a JSON file"
 
     filepath: StringProperty(subtype="FILE_PATH")
     filter_glob: StringProperty(default="*.json", options={"HIDDEN"})
@@ -388,6 +469,13 @@ class MARBLE_OT_import_settings(bpy.types.Operator):
         return {"FINISHED"}
 
 
+# --- Godot project parsing ---------------------------------------------------
+GD_NUMBER_RE = re.compile(
+    r"^\s*(?:@export\s+)?(?:const|var)\s+(\w+)\s*:\s*(?:float|int)\s*=\s*(-?\d+(?:\.\d+)?)",
+    re.MULTILINE,
+)
+
+
 def parse_godot_project(text):
     """Pull the physics numbers we care about out of a project.godot file."""
     found = {}
@@ -416,11 +504,102 @@ def parse_godot_project(text):
     return found
 
 
-class MARBLE_OT_import_godot_project(bpy.types.Operator):
-    bl_idname = "marble.import_godot_project"
-    bl_label = "Read project.godot"
-    bl_description = ("Read gravity and physics tick rate from a Godot project.godot file so the "
-                      "playtest uses the same values as the game")
+def parse_gd_numbers(text):
+    """All `const NAME : float = 1.0` / `var name : float = 2.0` numbers in a GDScript file."""
+    return {name: float(value) for name, value in GD_NUMBER_RE.findall(text)}
+
+
+def parse_player_tscn(text):
+    """Mass, gravity scale, material and sphere radius from a player.tscn."""
+    out = {}
+    sections = re.split(r"^\[", text, flags=re.MULTILINE)
+    for section in sections:
+        header, _, body = section.partition("\n")
+        props = {}
+        for line in body.splitlines():
+            if "=" in line and not line.startswith("["):
+                key, _, value = line.partition("=")
+                try:
+                    props[key.strip()] = float(value.strip())
+                except ValueError:
+                    pass
+        if 'type="PhysicsMaterial"' in header and "friction" not in out:
+            out.update({k: props[k] for k in ("friction", "bounce") if k in props})
+        elif 'type="SphereShape3D"' in header and "radius" not in out:
+            if "radius" in props:
+                out["radius"] = props["radius"]
+        elif 'type="RigidBody3D"' in header:
+            out.update({k: props[k] for k in ("mass", "gravity_scale", "linear_damp") if k in props})
+    return out
+
+
+def godot_to_settings(project, player, tscn, camera):
+    """Map the game's numbers onto add-on settings (see props.GAME for the derivation)."""
+    out = {}
+    hz = int(project.get("physics_hz", 60))
+    out["physics_hz"] = hz
+    mass = float(tscn.get("mass", 1.0)) or 1.0
+    out["marble_mass"] = mass
+    out["gravity"] = float(project.get("gravity", 9.8)) * float(tscn.get("gravity_scale", 1.0))
+    if "radius" in tscn:
+        out["marble_radius"] = tscn["radius"]
+    if "friction" in tscn:
+        out["rb_friction"] = tscn["friction"]
+    if "bounce" in tscn:
+        out["rb_bounciness"] = tscn["bounce"]
+        out["bounce"] = tscn["bounce"]
+
+    p = player
+    if "ROLL_FORCE" in p:
+        out["accel"] = p["ROLL_FORCE"] / mass
+        out["air_accel"] = out["accel"] * p.get("AIR_CONTROL", 1.0)
+    if "MAX_SPEED" in p:
+        out["max_speed"] = p["MAX_SPEED"]
+    if "JUMP_IMPULSE" in p:
+        out["jump_speed"] = p["JUMP_IMPULSE"] / mass
+    if "JUMP_SPEED_BONUS" in p:
+        out["jump_bonus"] = p["JUMP_SPEED_BONUS"] / mass
+    direct = {
+        "JUMP_BONUS_MIN": "jump_bonus_min", "JUMP_BONUS_SPAN": "jump_bonus_span",
+        "GROUND_DAMP": "friction", "COAST_DAMP": "coast_friction", "AIR_DAMP": "air_friction",
+        "RAMP_KEEP": "ramp_keep", "FLOW_LIMIT": "flow_limit", "SLOPE_BOOST": "slope_boost",
+        "UPHILL_ASSIST": "uphill_assist", "ASSIST_MIN_SPEED": "assist_min_speed",
+        "COYOTE_TIME": "coyote_time", "JUMP_BUFFER": "jump_buffer",
+    }
+    for src, dst in direct.items():
+        if src in p:
+            out[dst] = p[src]
+    if "AIR_DRAG" in p:
+        out["air_drag"] = 1.0 - p["AIR_DRAG"] ** hz   # per-frame multiplier -> per-second loss
+
+    c = camera
+    if "camrot_v" in c:
+        out["cam_pitch"] = c["camrot_v"]
+    if "_zoom_target" in c:
+        out["cam_distance"] = c["_zoom_target"]
+    if "h_sensitivity" in c:
+        out["mouse_sensitivity"] = c["h_sensitivity"]
+    if "FOLLOW_RATE" in c:
+        out["cam_follow_rate"] = c["FOLLOW_RATE"]
+    out["fall_gravity_mult"] = 1.0
+    out["jump_cut"] = False
+    return out
+
+
+def _read(path):
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            return fh.read()
+    except OSError:
+        return None
+
+
+class MARBLE_OT_sync_godot(bpy.types.Operator):
+    bl_idname = "marble.sync_godot"
+    bl_label = "Sync from Godot Project"
+    bl_description = ("Pick the game's project.godot: reads gravity and tick rate from it, then the "
+                      "marble numbers from player.gd / player.tscn and the camera from camera_rig.gd "
+                      "in the same folder, and applies them all")
     bl_options = {"REGISTER", "UNDO"}
 
     filepath: StringProperty(subtype="FILE_PATH")
@@ -431,32 +610,55 @@ class MARBLE_OT_import_godot_project(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
     def execute(self, context):
-        try:
-            with open(self.filepath, "r", encoding="utf-8") as fh:
-                found = parse_godot_project(fh.read())
-        except OSError as exc:
-            self.report({"ERROR"}, f"Could not read project: {exc}")
+        text = _read(self.filepath)
+        if text is None:
+            self.report({"ERROR"}, f"Could not read {self.filepath}")
             return {"CANCELLED"}
+        folder = os.path.dirname(self.filepath)
+        project = parse_godot_project(text)
+        used = ["project.godot"]
+
+        player = {}
+        gd = _read(os.path.join(folder, "player.gd"))
+        if gd is not None:
+            player = parse_gd_numbers(gd)
+            used.append("player.gd")
+        tscn = {}
+        ts = _read(os.path.join(folder, "player.tscn"))
+        if ts is not None:
+            tscn = parse_player_tscn(ts)
+            used.append("player.tscn")
+        camera = {}
+        cam = _read(os.path.join(folder, "camera_rig.gd"))
+        if cam is not None:
+            camera = parse_gd_numbers(cam)
+            used.append("camera_rig.gd")
+
+        values = godot_to_settings(project, player, tscn, camera)
         settings = get_settings(context)
-        applied = dict_to_settings(settings, found)
-        if "gravity" not in found:
-            settings.gravity = 9.8  # Godot default when the project does not override it
-        msg = f"project.godot: gravity {settings.gravity:.2f}, physics {settings.physics_hz} Hz ({applied} overrides)"
-        settings.design_result = msg
+        applied = dict_to_settings(settings, values)
+        msg = (f"Synced {applied} settings from {', '.join(used)} | gravity {settings.gravity:.1f} | "
+               f"accel {settings.accel:.1f} | max {settings.max_speed:.1f} | jump {settings.jump_speed:.1f}"
+               f"+{settings.jump_bonus:.1f} | mass {settings.marble_mass:.2f} r {settings.marble_radius:.2f}")
+        if gd is None:
+            msg += " | player.gd not found next to project.godot"
+        settings.sync_result = msg
         self.report({"INFO"}, msg)
         return {"FINISHED"}
 
 
 CLASSES = (
+    MARBLE_OT_add_game_box,
     MARBLE_OT_add_marker,
     MARBLE_OT_jump_arc,
     MARBLE_OT_solve_jump_speed,
     MARBLE_OT_ramp_info,
     MARBLE_OT_level_stats,
     MARBLE_OT_clear_design,
+    MARBLE_OT_open_tutorial,
     MARBLE_OT_export_settings,
     MARBLE_OT_import_settings,
-    MARBLE_OT_import_godot_project,
+    MARBLE_OT_sync_godot,
 )
 
 

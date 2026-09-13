@@ -5,12 +5,15 @@ Three tools live in one sidebar tab (**3D View > press N > Marble**):
 
 | Tool | What it does |
 | --- | --- |
-| **Drop Tester** | Place a spawn empty, drop one or more rigid-body marbles (optionally with a launch speed), watch them on the timeline and see a traced curve of where each one went, plus a text report (max speed, distance, fell off / finished / stopped). |
-| **Playtest** | Drive a marble around the level inside the viewport with WASD + mouse. Godot-style fixed-step physics written in plain Python, third-person camera, checkpoints, finish timer, kill plane, recorded route. |
-| **Level Design** | Jump-arc preview, "how fast do I need to launch to reach that spot" solver, ramp slope / speed-gained read-out, level stats with physics gotchas, checkpoint / finish / target markers, and JSON import/export so the numbers stay in sync with the Godot project. |
+| **Drop Tester** | Place the spawn, drop one or more rigid-body marbles (optionally with a launch speed), watch them on the timeline and see a traced curve of where each one went, plus a text report (max speed, distance, fell / finished / stopped). |
+| **Playtest** | Drive a marble around the level inside the viewport with WASD + mouse. A fixed-step physics loop that mirrors the game's `player.gd` (input force and cap, coast damping, jump momentum bonus, coyote time, jump buffer, landing-only bounce, ramp momentum, downhill boost), third-person camera like the game's rig, timer / finish / fall boxes, checkpoints, recorded route. |
+| **Level Design** | Godot-named game boxes (`spawnbox`, `timer-box`, `finish-box`, `fall-box`), jump-arc preview, "how fast do I need to launch to reach that spot" solver, ramp slope / speed-gained read-out, level stats, and **Sync from Godot Project** which reads the physics numbers straight out of `player.gd`, `player.tscn` and `camera_rig.gd`. |
 
-Download: **[dist/marble_allstars_tools-0.1.1.zip](dist/marble_allstars_tools-0.1.1.zip)**
+Download: **[dist/marble_allstars_tools-0.2.0.zip](dist/marble_allstars_tools-0.2.0.zip)**
 (also served at <https://cfg-jabba.github.io/blender/> once this branch is merged).
+
+**New here? Read [TUTORIAL.md](TUTORIAL.md)** – a ten-minute walk-through of one level, from
+spawn to "plays like the game". The panel's Quick Start section has the short version.
 
 Blender 4.0 or newer. Tested headlessly against Blender 4.2 LTS.
 
@@ -31,12 +34,15 @@ Rigid-body caches stay in memory and the simulation length is capped by *Sim Fra
    **Level Collection** (otherwise every visible mesh counts as level).
 2. Set **Marble Radius** to the radius used in the game.
 3. Put the 3D cursor on the floor where the marble should start and click **At Cursor**.
-   The spawn empty's **Z arrow points up from the floor** and its **Y arrow is the launch
-   direction**. Rotate it (R) to aim jumps.
-4. **Drop Marble** – the marble falls from the spawn and the timeline plays.
+   The `spawnbox` empty's **origin is the marble centre** (the game reads it the same way) and
+   its **Y arrow is the launch direction**. Rotate it (R) to aim jumps.
+4. **Level Design > Game Boxes**: add **Timer**, **Finish** and **Fall**. They are empties with
+   the names the game's level controller wires (`timer-box`, `finish-box`, `fall-box`), sized so
+   Godot's zone = scale x 2. Fall auto-sizes itself under the whole level.
+5. **Drop Marble** – the marble falls from the spawn and the timeline plays.
    Set **Launch Speed** to shoot it along the Y arrow, or **Marbles > 1** to drop a row of
    marbles across the ramp and see which ones make it.
-5. **Play Level** – mouse over the viewport, click it, and drive the marble yourself.
+6. **Play Level** – mouse over the viewport, click it, and drive the marble yourself.
    Press **Esc** to stop; the route you drove is left behind as a curve.
 
 ## Playtest controls
@@ -57,9 +63,10 @@ finish messages while playing.
 
 ## Level design helpers
 
-* **Markers** – Checkpoint (respawn point during play), Finish (stops the timer, also detected
-  by the drop tester) and Jump Target (used by the solver). Placed at the 3D cursor; the
-  sphere size is the trigger radius.
+* **Game Boxes** – Spawn, Timer, Finish, Fall: the zones the game wires by object name.
+  Clicking a box button again moves the existing box instead of adding another.
+* **Markers** – Checkpoint (respawn point during play) and Jump Target (used by the solver).
+  Placed at the 3D cursor; the sphere size is the checkpoint's trigger radius.
 * **Preview Jump Arc** – draws the flight path from the spawn along its Y arrow at *Arc Speed*
   using the playtest gravity, stops where the marble would touch the level, and reports
   flight time, horizontal distance, height change and apex. If a Jump Target exists it also
@@ -74,33 +81,31 @@ finish messages while playing.
 
 ## Matching the Godot project
 
-The playtest physics is a deliberately small model so it can be tuned by hand:
+The defaults are the game's own numbers, derived from `player.gd`, `player.tscn` and
+`camera_rig.gd` (the *Marble Allstars* preset):
 
-**Feels floaty?** Raise **Gravity** first (marble games usually run 20-30, not Godot's stock 9.8),
-then raise **Fall Gravity x** so the marble comes down faster than it went up, and keep
-**Jump Cut** on so a short tap gives a short hop. Lower **Jump Speed** if jumps are still too
-tall. The *Snappy marble* preset is the default and a good starting point.
-
-| Setting | Meaning |
+| Setting | Game source |
 | --- | --- |
-| Gravity | m/s² (Godot `physics/3d/default_gravity`, stock 9.8). Shared with the drop tester |
-| Fall Gravity x | multiplier applied while falling (and while rising after an early jump release with Jump Cut) |
-| Jump Cut | releasing Space early ends the jump sooner |
-| Ground / Air Accel | acceleration from input while grounded / airborne |
-| Max Input Speed | input stops adding speed past this; slopes and gravity still can |
-| Jump Speed | vertical speed added by a jump |
-| Bounce | restitution on contact (0 = none) |
-| Rolling Friction | damping of surface-parallel velocity while grounded |
-| Slope Limit | steeper surfaces are walls, not ground |
-| Physics Hz / Substeps | tick rate (Godot default 60) and collision substeps |
+| Gravity 19.6 | `default_gravity` 9.8 x `gravity_scale` 2.0 |
+| Ground / Air Accel 21.6 / 11.9 | `ROLL_FORCE` 40 / mass 1.85, x `AIR_CONTROL` 0.55 |
+| Max Input Speed 12 | `MAX_SPEED` |
+| Jump Speed 10.3 + Bonus 4.3 (from 6 over 12 m/s) | `JUMP_IMPULSE` 19 / mass, `JUMP_SPEED_BONUS` 8 / mass, `JUMP_BONUS_MIN/SPAN` |
+| Coyote 0.12, Buffer 0.12 | `COYOTE_TIME`, `JUMP_BUFFER` |
+| Ground / Coast / Air Damp 0.5 / 0.15 / 0.35 | `GROUND_DAMP`, `COAST_DAMP`, `AIR_DAMP` |
+| Air Drag 0.26 per second | `AIR_DRAG` 0.995 per frame |
+| Bounce 0.52 on landings only | PhysicsMaterial `bounce`, swapped to 0 while rolling |
+| Ramp Momentum 0.985, Flow Limit 0.75 | `RAMP_KEEP`, `FLOW_LIMIT` |
+| Downhill Boost 90, Uphill Assist 0.8 from 10 m/s | `SLOPE_BOOST`, `UPHILL_ASSIST`, `ASSIST_MIN_SPEED` |
+| Camera 6 m, pitch -30, sensitivity 0.1, follow 10 | `camera_rig.gd` |
 
-Four presets are included (Snappy marble, Marble Blast style, Godot stock, Heavy). To keep
-numbers in sync with the real game:
+Other presets: *Snappy* (heavier falls plus jump cut), *Marble Blast style*, *Godot stock*.
 
-* **Read project.godot** – pulls gravity and the physics tick rate straight from the Godot
-  project file.
-* **Export / Import** – saves every setting to JSON. Keep that file next to the Godot project;
-  whoever tunes the marble in Godot can update it and everyone re-imports it in Blender.
+* **Sync from Godot Project** – pick the game's `project.godot`; the add-on reads that file plus
+  `player.gd`, `player.tscn` and `camera_rig.gd` next to it, converts forces and impulses by
+  mass, and applies everything. Run it whenever the marble code changes.
+* **Export / Import** – saves every setting to JSON if you want to hand tuned numbers around.
+
+Not simulated in play mode: wall rides, slides (Shift), grind rails, launch pads.
 
 The rigid-body drop tester uses Blender's Bullet solver, so it will never match Godot's
 Jolt/Godot Physics exactly. Use it for "does the ramp launch the marble roughly here" and the
@@ -116,8 +121,9 @@ blender/
     utils.py               collections, spawn, level geometry, BVH, curves
     drop_tester.py         rigid-body drop / launch / path tracing
     playtest.py            in-viewport play mode + MarblePhysics
-    level_tools.py         arcs, solver, ramp info, stats, markers, JSON sync
+    level_tools.py         game boxes, markers, arcs, solver, ramp info, stats, Godot sync
     ui.py                  sidebar panels
+  TUTORIAL.md              step-by-step walkthrough
   tests/test_headless.py   smoke test (python -m pip install bpy; python tests/test_headless.py)
   tests/demo_level.blend   the level the test builds, for poking at in Blender
   build_zip.py             rebuilds dist/marble_allstars_tools-<version>.zip
