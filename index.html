@@ -6,28 +6,81 @@
 <title>Clipper Studio Co</title>
 <style>
   :root { color-scheme: light dark; }
-  body { margin: 0 auto; padding: 64px 24px; max-width: 40rem;
+  body { margin: 0 auto; padding: 48px 24px 96px; max-width: 46rem;
          font: 16px/1.65 -apple-system, "Segoe UI", system-ui, sans-serif;
          color: #1b1e22; background: #fff; }
   @media (prefers-color-scheme: dark) {
     body { color: #e6eae8; background: #14171a; }
     a { color: #7fb8ff; }
+    nav, footer { border-color: #2b3036 !important; }
   }
-  h1 { font-size: 2rem; margin: 0 0 .4em; }
-  p { color: #4a5257; }
-  @media (prefers-color-scheme: dark) { p { color: #a3adb0; } }
-  ul { padding-left: 1.2em; margin-top: 2em; }
-  li { margin: .4em 0; }
+  nav { display: flex; gap: 1.4em; padding-bottom: 1em; margin-bottom: 2.5em;
+        border-bottom: 1px solid #d8dce0; font-size: .95rem; }
+  nav strong { margin-right: auto; }
+  h1 { font-size: 2.1rem; line-height: 1.15; margin: 0 0 .4em; letter-spacing: -.01em; }
+  h2 { font-size: 1.15rem; margin: 2.4em 0 .5em; }
+  .lead { font-size: 1.1rem; color: #4a5257; }
+  @media (prefers-color-scheme: dark) { .lead { color: #a3adb0; } }
+  ol, ul { padding-left: 1.2em; }
+  li { margin: .45em 0; }
+  footer { margin-top: 3.5em; padding-top: 1.2em; border-top: 1px solid #d8dce0;
+           color: #6b7480; font-size: .9rem; }
 </style>
 </head>
 <body>
-<h1>Clipper Studio Co</h1>
-<p>A personal desktop tool that edits short-form videos and publishes them to
-its operator’s own social accounts. No public sign-up, no other users, no
-server.</p>
+<nav>
+  <strong>Clipper Studio Co</strong>
+  <a href="./terms.html">Terms of Service</a>
+  <a href="./privacy.html">Privacy Policy</a>
+</nav>
+
+<h1>Short clips from your streams, posted on your schedule.</h1>
+<p class="lead">Clipper Studio finds the best moments in a creator’s livestreams and
+gameplay, edits them into captioned vertical clips, and publishes the ones the
+creator approves to their own TikTok and YouTube accounts.</p>
+
+<h2>Who uses it</h2>
+<p>Streamers and game studios in the Clipper creator program. Each creator
+connects their own accounts and only ever publishes to those accounts. Joining
+is by invitation through the program; there is no open sign-up.</p>
+
+<h2>How it works</h2>
+<ol>
+  <li><strong>Clips are made.</strong> Clipper Studio picks moments from the
+      creator’s streams and renders 9:16 clips with captions.</li>
+  <li><strong>The creator connects TikTok.</strong> They sign in with TikTok and
+      allow Clipper Studio to post to their account. They can remove that access
+      at any time from TikTok’s settings.</li>
+  <li><strong>The creator reviews every clip.</strong> On the Publisher page they
+      watch each clip, edit its caption, and choose who can view it, whether
+      comments, Duet and Stitch are allowed, and whether it promotes a brand.
+      Nothing is preselected.</li>
+  <li><strong>The creator approves it.</strong> They confirm they want it posted,
+      either now or at a time they pick.</li>
+  <li><strong>Clipper Studio posts it.</strong> At that time the clip is published
+      to the creator’s TikTok with exactly the settings they chose.</li>
+</ol>
+
+<h2>What creators control</h2>
 <ul>
-  <li><a href="./terms.html">Terms of Service</a></li>
-  <li><a href="./privacy.html">Privacy Policy</a></li>
+  <li>Which clips are posted, and when.</li>
+  <li>Every caption and every privacy and interaction setting.</li>
+  <li>Branded-content disclosure, following TikTok’s rules.</li>
+  <li>Cancelling a scheduled post before it goes out.</li>
+  <li>Disconnecting their account at any time.</li>
 </ul>
+
+<h2>What it never does</h2>
+<ul>
+  <li>Post anything a creator has not approved.</li>
+  <li>Read followers, messages, comments or viewing history.</li>
+  <li>Sell or share creator data.</li>
+</ul>
+
+<footer>
+  Contact: <a href="mailto:bcs0027@hotmail.com">bcs0027@hotmail.com</a> ·
+  <a href="./terms.html">Terms of Service</a> ·
+  <a href="./privacy.html">Privacy Policy</a>
+</footer>
 </body>
 </html>
