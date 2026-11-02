@@ -149,6 +149,10 @@ def parse_date(s):
     return d.astimezone(dt.timezone.utc)
 
 
+def iso_utc(d):
+    return d.astimezone(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
 def parse_feed(xml_bytes):
     """Yield dicts {title, link, summary, published} from RSS 2.0 or Atom."""
     root = ET.fromstring(xml_bytes)
@@ -260,16 +264,17 @@ def build_stories(items, now):
         hn = max(m["hn"] for m in ms)
         age_h = (now - ms[0]["published"]).total_seconds() / 3600
         rank = signal * 10 + min(hn / 100, 8) - age_h / 8
-        slug = re.sub(r"[^a-z0-9]+", "-", ms[0]["title"].lower()).strip("-")[:48]
+        # The id comes from the first headline in the cluster, so it stays put as more outlets join in.
+        slug = re.sub(r"[^a-z0-9]+", "-", ms[-1]["title"].lower()).strip("-")[:48]
         summary = lead["summary"]
         summary = (summary[:237].rsplit(" ", 1)[0] + "…") if len(summary) > 240 else summary
         stories.append({
             "id": f"{c['domain']}-{slug}", "kind": "story", "domain": c["domain"], "title": ms[0]["title"],
             "summary": summary, "lat": lat, "lon": lon, "place": place, "geo": geo,
-            "published": ms[0]["published"].date().isoformat(), "signal": signal,
-            "hn": hn or None,
+            "published": ms[0]["published"].date().isoformat(), "published_at": iso_utc(ms[0]["published"]),
+            "signal": signal, "hn": hn or None,
             "confidence": "high" if signal >= 3 else "medium" if signal == 2 else "low",
-            "sources": [{"name": m["outlet"], "url": m["link"]} for m in ms], "_rank": rank,
+            "sources": [{"name": m["outlet"], "url": m["link"], "at": iso_utc(m["published"])} for m in ms], "_rank": rank,
         })
     out = []
     for domain in ("fashion", "tech"):
@@ -321,8 +326,12 @@ def main():
         "mode": mode, "note": note, "feeds_ok": ok, "feeds_failed": failed,
         "items": stories + events + releases,
     }
+    # `generated` means "the content last changed": if only the clock moved, keep the file as it was.
+    if prev and {k: v for k, v in prev.items() if k != "generated"} == {k: v for k, v in out.items() if k != "generated"}:
+        print("no change in content; data.json left as it was")
+        return
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    n = {k: sum(1 for i in out["items"] if i["kind"] == k) for k in ("story", "event", "release")}
+    n ={k: sum(1 for i in out["items"] if i["kind"] == k) for k in ("story", "event", "release")}
     print(f"wrote {OUT.relative_to(ROOT)}: mode={mode} {n} ok={len(ok)} failed={len(failed)}")
 
 

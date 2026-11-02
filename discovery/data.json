@@ -1,157 +1,676 @@
 {
- "generated": "2026-11-02T00:00:00Z",
- "mode": "snapshot",
- "note": "Hand-compiled from web searches on 2 Nov 2026. Items marked low confidence rest on a single secondary source. Live feeds replace the stories as soon as the scheduled build can reach them.",
- "feeds_ok": [],
+ "generated": "2026-11-02T07:41:39Z",
+ "mode": "live",
+ "note": "Compiled automatically from 12 outlets. Events and releases are hand-curated.",
+ "feeds_ok": [
+  "Vogue",
+  "The Business of Fashion",
+  "Hypebeast",
+  "Highsnobiety",
+  "Fashionista",
+  "Who What Wear",
+  "The Verge",
+  "TechCrunch",
+  "Ars Technica",
+  "Wired",
+  "Engadget",
+  "Hacker News"
+ ],
  "feeds_failed": [],
  "items": [
   {
-   "id": "mbappe-china-brands",
+   "id": "fashion-the-nike-air-max-dolce-sheds-its-netting-for-a-l",
+   "kind": "story",
    "domain": "fashion",
-   "title": "Mbappé’s Mao remark ripples through his brand deals in China",
-   "summary": "Kylian Mbappé apologised for remarks read as joking about Mao Zedong. Chinese brands including Dongpeng and Mengniu cut ties; reports say Dior and Hublot removed related posts from Weibo (Dior declined to comment) and Swiss shoemaker On, which recently signed him, has not said what happens next.",
-   "lat": 31.23,
-   "lon": 121.47,
-   "place": "Shanghai",
-   "geo": "market",
-   "published": "2026-10-28",
-   "signal": 4,
-   "confidence": "high",
+   "title": "The Nike Air Max Dolce Sheds Its Netting for a “Leather Croc Skin” Pack",
+   "summary": "Name: Nike Air Max Dolce “Leather Croc Skin” PackColorway: Black/Anthracite, Pearl Pink/Pale Pink-BlackSKU: IR8665-600, IR8665-001MSRP: $170 USDRelease Date: Holiday 2026Nike is giving the Air Max Dolce a more polished finish with its…",
+   "lat": 47.61,
+   "lon": -122.33,
+   "place": "Seattle",
+   "geo": "hq",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:35:08Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
    "sources": [
     {
-     "name": "Al Jazeera",
-     "url": "https://www.aljazeera.com/sports/2026/10/28/kylian-mbappe-china-meme-mao-zedong-la-liga-real-madrid"
-    },
-    {
-     "name": "AP via ClickOnDetroit",
-     "url": "https://www.clickondetroit.com/business/2026/10/27/chinese-brands-cut-ties-with-french-soccer-star-mbappe-over-chinese-dictator-remark/"
-    },
-    {
-     "name": "Swissinfo (Bloomberg)",
-     "url": "https://www.swissinfo.ch/eng/mbapp%c3%a9-apologizes-for-perceived-mao-insult-after-china-backlash/92283541"
-    },
-    {
-     "name": "Bloomberg Línea",
-     "url": "https://www.bloomberglinea.com/mundo/que-marcas-rompieron-con-mbappe-tras-la-polemica-por-mao-en-china-lo-que-paso-con-on-y-dior/"
+     "name": "Hypebeast",
+     "url": "https://hypebeast.com/2026/11/nike-air-max-dolce-leather-croc-skin-pack-ir8665-600-ir8665-001-official-images",
+     "at": "2026-11-02T07:35:08Z"
     }
-   ],
-   "kind": "story"
+   ]
   },
   {
-   "id": "winter-2026-trends",
+   "id": "fashion-ufc-legend-conor-mcgregor-announces-last-dance-m",
+   "kind": "story",
    "domain": "fashion",
-   "title": "Winter 2026: single wide-cuff jeans, fur trim, gilded drama and gothic lace",
-   "summary": "Who What Wear calls the wide cuff the denim trend of the season, alongside fur trim and jacquard holiday dresses; its luxury round-up points to gilded drama and gothic lace.",
+   "title": "UFC Legend Conor McGregor Announces \"Last Dance\" MMA Return",
+   "summary": "Summary Conor McGregor has announced plans for a \"last dance\" inside the Octagon for the final bout of his UFC contractThe former two-division champion took aim at Canelo Álvarez's recent fight metrics and vowed to break his own…",
+   "lat": 24.71,
+   "lon": 46.68,
+   "place": "Riyadh",
+   "geo": "mentioned",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:32:23Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hypebeast",
+     "url": "https://hypebeast.com/2026/11/ufc-conor-mcgregor-announces-final-fight-last-dance-mma-return-news",
+     "at": "2026-11-02T07:32:23Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-new-balance-s-next-usm-collab-modular-cold-plung",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "New Balance's Next USM Collab? Modular Cold Plunge Tanks",
+   "summary": "New Balance & USM return with their newest collaboration: modular cold plunge stations for New York marathon runners.",
+   "lat": 40.71,
+   "lon": -74.01,
+   "place": "New York",
+   "geo": "mentioned",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:32:06Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Highsnobiety",
+     "url": "https://www.highsnobiety.com/p/new-balance-usm-dover-street-market/",
+     "at": "2026-11-02T07:32:06Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-wales-bonner-s-fancy-adidas-sneaker-is-a-rich-li",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "Wales Bonner’s Fancy adidas Sneaker Is a Rich Little Number",
+   "summary": "Wales Bonner and adidas bring a rich brown croc-effect finish to the Karintha sneaker, adding an elegant twist to the Three Stripes.",
+   "lat": 52.52,
+   "lon": 13.4,
+   "place": "Berlin",
+   "geo": "hq",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:21:16Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Highsnobiety",
+     "url": "https://www.highsnobiety.com/p/adidas-wales-bonner-karintha-croc/",
+     "at": "2026-11-02T07:21:16Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-adidas-most-lowkey-sneaker-is-highly-luxe",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "adidas’ Most Lowkey Sneaker Is Highly Luxe",
+   "summary": "adidas' latest Tobacco sneaker is a Japan-exclusive release featuring a clean all-black colorway & luxe suede uppers.",
+   "lat": 35.68,
+   "lon": 139.69,
+   "place": "Tokyo",
+   "geo": "mentioned",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:19:27Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Highsnobiety",
+     "url": "https://www.highsnobiety.com/p/adidas-tobacco-triple-black/",
+     "at": "2026-11-02T07:19:27Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-i-m-convinced-this-overlooked-boot-is-suddenly-c",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "I'm Convinced, This Overlooked Boot is Suddenly Cooler Than Anything Else in My Winter Wardrobe",
+   "summary": "To the point.",
    "lat": 40.71,
    "lon": -74.01,
    "place": "New York",
    "geo": "source",
-   "published": "2026-11-01",
-   "signal": 1,
-   "confidence": "medium",
-   "sources": [
-    {
-     "name": "Who What Wear",
-     "url": "https://whowhatwear.com/fashion/trends/luxury-fashion-trends-winter-2026"
-    },
-    {
-     "name": "Who What Wear (what to buy)",
-     "url": "https://www.whowhatwear.com/fashion/shopping/what-to-buy-in-november-2026"
-    }
-   ],
-   "kind": "story"
-  },
-  {
-   "id": "tapestry-ralph-lauren-earnings",
-   "domain": "fashion",
-   "title": "Tapestry (Coach) and Ralph Lauren report earnings this week",
-   "summary": "The Business of Fashion flags both American houses reporting this week, a read on how luxury and aspirational demand is holding up.",
-   "lat": 40.71,
-   "lon": -74.01,
-   "place": "New York",
-   "geo": "hq",
    "published": "2026-11-02",
+   "published_at": "2026-11-02T07:15:00Z",
    "signal": 1,
-   "confidence": "medium",
-   "sources": [
-    {
-     "name": "The Business of Fashion",
-     "url": "https://www.businessoffashion.com/"
-    }
-   ],
-   "kind": "story"
-  },
-  {
-   "id": "trent-q-results",
-   "domain": "fashion",
-   "title": "India’s Trent beats quarterly expectations",
-   "summary": "The Tata-group retailer posted results ahead of expectations, per The Business of Fashion.",
-   "lat": 19.08,
-   "lon": 72.88,
-   "place": "Mumbai",
-   "geo": "hq",
-   "published": "2026-11-02",
-   "signal": 1,
-   "confidence": "medium",
-   "sources": [
-    {
-     "name": "The Business of Fashion",
-     "url": "https://www.businessoffashion.com/"
-    }
-   ],
-   "kind": "story"
-  },
-  {
-   "id": "apple-intelligence-china-qwen",
-   "domain": "tech",
-   "title": "Apple Intelligence cleared in China, with Alibaba’s Qwen under the hood",
-   "summary": "China’s regulator approved Apple Intelligence on 15 July. Alibaba says Qwen will power it across iOS, iPadOS, macOS and visionOS for users in China. No launch date has been announced; an Apple support page naming Qwen was posted and pulled within a day.",
-   "lat": 39.9,
-   "lon": 116.41,
-   "place": "Beijing",
-   "geo": "market",
-   "published": "2026-07-15",
-   "signal": 4,
-   "confidence": "high",
-   "sources": [
-    {
-     "name": "Quartz",
-     "url": "https://qz.com/apple-intelligence-china-approval-alibaba-qwen-071526"
-    },
-    {
-     "name": "Gigazine",
-     "url": "https://gigazine.net/gsc_news/en/20260716-china-apple-intelligence/"
-    },
-    {
-     "name": "HWBusters",
-     "url": "https://hwbusters.com/news/apple-intelligence-clears-china-and-its-running-on-alibabas-qwen/"
-    },
-    {
-     "name": "Macerkopf",
-     "url": "https://www.macerkopf.de/2026/07/20/bericht-apple-qwen-entwickler-bord/"
-    }
-   ],
-   "kind": "story"
-  },
-  {
-   "id": "agibot-innovation-day",
-   "domain": "tech",
-   "title": "AgiBot Innovation Day: AHA3 humanoid platform and GO-3 Preview model",
-   "summary": "A bundle of embodied-AI launches from the Shanghai robotics company. Reported by a single AI newsletter, so treat details as unconfirmed.",
-   "lat": 31.23,
-   "lon": 121.47,
-   "place": "Shanghai",
-   "geo": "hq",
-   "published": "2026-11-01",
-   "signal": 1,
+   "hn": null,
    "confidence": "low",
    "sources": [
     {
-     "name": "AI News Roundup (Substack)",
-     "url": "https://aialvin.substack.com/p/ai-news-roundup-10-developments-to-141"
+     "name": "Who What Wear",
+     "url": "https://www.whowhatwear.com/fashion/shoes/pointed-toe-boots-outfits",
+     "at": "2026-11-02T07:15:00Z"
     }
-   ],
-   "kind": "story"
+   ]
+  },
+  {
+   "id": "fashion-nike-sb-s-glossy-champagne-themed-dunks-have-exp",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "Nike SB's Glossy Champagne-Themed Dunks Have Expensive Taste",
+   "summary": "Nike SB debuts a patent leather Dunk Low \"Black Spruce\" skate shoe inspired by champagne bottles.",
+   "lat": 47.61,
+   "lon": -122.33,
+   "place": "Seattle",
+   "geo": "hq",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:14:50Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Highsnobiety",
+     "url": "https://www.highsnobiety.com/p/nike-sb-dunk-black-spruce/",
+     "at": "2026-11-02T07:14:50Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-nike-s-space-jam-air-jordans-went-full-bottega",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "Nike’s ‘Space Jam’ Air Jordans Went Full Bottega",
+   "summary": "The Air Jordan 11 gets a refresh for the 'Space Jam' collection, resulting in this tonal Bottega-style \"Green Screen\" version of the sneaker.",
+   "lat": 47.61,
+   "lon": -122.33,
+   "place": "Seattle",
+   "geo": "hq",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:13:07Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Highsnobiety",
+     "url": "https://www.highsnobiety.com/p/jordan-11-space-jam-green-screen/",
+     "at": "2026-11-02T07:13:07Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-engineered-garments-x-chrome-collaborate-on-a-ne",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "ENGINEERED GARMENTS x CHROME Collaborate on a New Bag",
+   "summary": "ENGINEERED GARMENTS and bag brand CHROME have announced a collaborative product. The MED PAC & SHOULDER EG bag, which fuses military-derived details with functionality suited for urban life, will be released on Friday, November 6.This…",
+   "lat": 35.68,
+   "lon": 139.69,
+   "place": "Tokyo",
+   "geo": "mentioned",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:04:41Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hypebeast",
+     "url": "https://hypebeast.com/2026/11/engineered-garments-x-chrome-collaboration-bag-info",
+     "at": "2026-11-02T07:04:41Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-arknets-drops-an-exclusive-carhartt-wip-santa-fe",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "ARKnets Drops an Exclusive Carhartt WIP Santa Fe OG Jacket",
+   "summary": "Utsunomiya-based select shop ARKnets is releasing an exclusive take on the Carhartt WIP Santa Fe OG JKT. Commemorating the 30th anniversary of ARKnets, this piece builds on the workwear-rooted Santa Fe Jacket, giving it a completely…",
+   "lat": 22.32,
+   "lon": 114.17,
+   "place": "Hong Kong",
+   "geo": "source",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:04:14Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hypebeast",
+     "url": "https://hypebeast.com/2026/11/arknets-carhartt-wip-santa-fe-og-jacket-exclusive-model-release-info",
+     "at": "2026-11-02T07:04:14Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-nike-s-exquisite-olive-green-running-shoe-is-per",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "Nike’s Exquisite Olive-Green Running Shoe Is Perfect",
+   "summary": "Nike's Pegasus Premium running shoe gets an earthy \"Cargo Khaki\" makeover for its latest release. And honestly, it's quite perfect.",
+   "lat": 47.61,
+   "lon": -122.33,
+   "place": "Seattle",
+   "geo": "hq",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:03:01Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Highsnobiety",
+     "url": "https://www.highsnobiety.com/p/nike-pegasus-premium-cargo-khaki/",
+     "at": "2026-11-02T07:03:01Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-sky-high-farm-workwear-and-on-debut-the-cloud-lo",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "Sky High Farm Workwear and On Debut the Cloud Low Waterproof Slip-On",
+   "summary": "Summary On and Sky High Farm Workwear have unveiled the laceless Cloud Low Waterproof in two subdued colorwaysThe silhouette features an elasticated slip-on entry waterproof nylon construction and rugged deep lugs beneath a Cloud…",
+   "lat": 47.37,
+   "lon": 8.54,
+   "place": "Zurich",
+   "geo": "mentioned",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:00:37Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hypebeast",
+     "url": "https://hypebeast.com/2026/11/sky-high-farm-workwear-on-running-cloud-low-date-torchwood-3mg30936417-black-3mg30931043-official-look-release-info",
+     "at": "2026-11-02T07:00:37Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-i-asked-a-celebrity-manicurist-for-november-nail",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "I Asked a Celebrity Manicurist for November Nail Ideas—6 Colours She Told Me to Try",
+   "summary": "Time for a manicure.",
+   "lat": 40.71,
+   "lon": -74.01,
+   "place": "New York",
+   "geo": "source",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:00:00Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Who What Wear",
+     "url": "https://www.whowhatwear.com/beauty/nails/november-nail-colours-2026",
+     "at": "2026-11-02T07:00:00Z"
+    }
+   ]
+  },
+  {
+   "id": "fashion-the-iconic-90-s-celeb-outfits-we-d-wear-this-win",
+   "kind": "story",
+   "domain": "fashion",
+   "title": "The Iconic 90's Celeb Outfits We'd Wear This Winter, According to Our Editors",
+   "summary": "Take it from the It girls.",
+   "lat": 40.71,
+   "lon": -74.01,
+   "place": "New York",
+   "geo": "source",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T07:00:00Z",
+   "signal": 1,
+   "hn": null,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Who What Wear",
+     "url": "https://www.whowhatwear.com/fashion/celebrity-style/it-girl-90s-outfits-2026",
+     "at": "2026-11-02T07:00:00Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-judge-allows-naacp-lawsuit-over-xai-data-center-",
+   "kind": "story",
+   "domain": "tech",
+   "title": "Judge says xAI must face NAACP lawsuit on data center pollution",
+   "summary": "An NAACP lawsuit accuses the SpaceX-owned AI company of violating the Clean Air Act.",
+   "lat": 34.05,
+   "lon": -118.24,
+   "place": "Los Angeles",
+   "geo": "hq",
+   "published": "2026-11-01",
+   "published_at": "2026-11-01T19:19:22Z",
+   "signal": 2,
+   "hn": null,
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "Engadget",
+     "url": "https://www.engadget.com/2303462/judge-says-xai-must-face-naacp-lawsuit-on-data-center-pollution/",
+     "at": "2026-11-01T19:19:22Z"
+    },
+    {
+     "name": "TechCrunch",
+     "url": "https://techcrunch.com/2026/10/31/judge-allows-naacp-lawsuit-over-xai-data-center-pollution-to-move-forward/",
+     "at": "2026-10-31T21:17:03Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-hackers-steal-6-3-billion-from-binance-in-record",
+   "kind": "story",
+   "domain": "tech",
+   "title": "North Korea linked to massive Binance crypto heist",
+   "summary": "The FBI says North Korea was behind the massive $6.3 billion crypto heist that hit Binance on October 29th. The FBI labeled the activity \"TraderTraitor\" and said that it had observed actors it has connected to hack converting the tokens…",
+   "lat": 37.57,
+   "lon": 126.98,
+   "place": "Seoul",
+   "geo": "mentioned",
+   "published": "2026-11-01",
+   "published_at": "2026-11-01T14:33:11Z",
+   "signal": 2,
+   "hn": null,
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "The Verge",
+     "url": "https://www.theverge.com/tech/1024176/north-korea-binance-crypto-heist",
+     "at": "2026-11-01T14:33:11Z"
+    },
+    {
+     "name": "Ars Technica",
+     "url": "https://arstechnica.com/security/2026/10/hackers-steal-6-3-billion-from-binance-in-record-crypto-heist/",
+     "at": "2026-10-30T13:46:39Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-show-hn-hackerbooks-hackertube-but-for-books-men",
+   "kind": "story",
+   "domain": "tech",
+   "title": "Show HN: HackerBooks – HackerTube, but for books mentioned on HN",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-11-01",
+   "published_at": "2026-11-01T15:58:28Z",
+   "signal": 1,
+   "hn": 1270,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://hackerbooks.org",
+     "at": "2026-11-01T15:58:28Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-an-italian-farmer-found-some-unknown-seeds-in-hi",
+   "kind": "story",
+   "domain": "tech",
+   "title": "An Italian farmer found some unknown seeds in his attic and planted them",
+   "summary": "",
+   "lat": 45.46,
+   "lon": 9.19,
+   "place": "Milan",
+   "geo": "mentioned",
+   "published": "2026-10-31",
+   "published_at": "2026-10-31T22:41:06Z",
+   "signal": 1,
+   "hn": 795,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://www.smithsonianmag.com/science-nature/italian-farmer-found-unknown-seeds-attic-with-nothing-lose-planted-them-result-biblical-180989644/",
+     "at": "2026-10-31T22:41:06Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-hackertube-youtube-built-from-videos-recommended",
+   "kind": "story",
+   "domain": "tech",
+   "title": "HackerTube: YouTube built from videos recommended by HN",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-10-31",
+   "published_at": "2026-10-31T19:56:53Z",
+   "signal": 1,
+   "hn": 2488,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://karpathy.bearblog.dev/hacker-tube/",
+     "at": "2026-10-31T19:56:53Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-lenovo-s-encrypted-fingerprint-usb-is-just-an-un",
+   "kind": "story",
+   "domain": "tech",
+   "title": "Lenovo's 'encrypted' fingerprint USB is just an unencrypted SD card in a case",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-11-01",
+   "published_at": "2026-11-01T14:34:43Z",
+   "signal": 1,
+   "hn": 461,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://www.reddit.com/r/technology/comments/1xl2pr3/lenovos_encrypted_fingerprint_usb_drive_is_just/",
+     "at": "2026-11-01T14:34:43Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-ask-hn-which-tv-do-you-recommend-for-privacy",
+   "kind": "story",
+   "domain": "tech",
+   "title": "Ask HN: Which TV do you recommend for privacy?",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-11-01",
+   "published_at": "2026-11-01T19:35:27Z",
+   "signal": 1,
+   "hn": 298,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://news.ycombinator.com/item?id=50328896",
+     "at": "2026-11-01T19:35:27Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-mathematics-has-changed-let-s-act-like-it",
+   "kind": "story",
+   "domain": "tech",
+   "title": "Mathematics has changed. Let's act like it",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-11-01",
+   "published_at": "2026-11-01T18:28:42Z",
+   "signal": 1,
+   "hn": 286,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://terrytao.wordpress.com/2026/11/01/mathematics-has-changed-lets-act-like-it/",
+     "at": "2026-11-01T18:28:42Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-occupysaas",
+   "kind": "story",
+   "domain": "tech",
+   "title": "OccupySaaS",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T00:17:27Z",
+   "signal": 1,
+   "hn": 206,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://occupysaas.com/",
+     "at": "2026-11-02T00:17:27Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-the-ai-cost-of-javascript-frameworks",
+   "kind": "story",
+   "domain": "tech",
+   "title": "The AI cost of JavaScript frameworks",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-11-01",
+   "published_at": "2026-11-01T06:06:19Z",
+   "signal": 1,
+   "hn": 352,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://nolanlawson.com/2026/10/28/the-ai-cost-of-javascript-frameworks/",
+     "at": "2026-11-01T06:06:19Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-show-hn-wikihack-hackertube-but-for-wikipedia-ar",
+   "kind": "story",
+   "domain": "tech",
+   "title": "Show HN: Wikihack – HackerTube, but for Wikipedia articles mentioned on HN",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T05:06:30Z",
+   "signal": 1,
+   "hn": 55,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://wikihack.netlify.app",
+     "at": "2026-11-02T05:06:30Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-f-oss-comics-13-bsd-unix-part-3-the-beginning-of",
+   "kind": "story",
+   "domain": "tech",
+   "title": "F/OSS Comics #13: BSD Unix, Part 3 – The Beginning of BSD Unix",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T01:59:38Z",
+   "signal": 1,
+   "hn": 89,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://fosscomics.com/posts/13.%20BSD%20Unix%20Part%203%20-%20The%20Beginning%20of%20BSD%20Unix/",
+     "at": "2026-11-02T01:59:38Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-ai-fan-wikis-riddled-with-errors-are-muddying-th",
+   "kind": "story",
+   "domain": "tech",
+   "title": "AI fan wikis riddled with errors are muddying the waters of games culture",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T01:47:07Z",
+   "signal": 1,
+   "hn": 78,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://www.eurogamer.net/ai-fan-wikis-errors-complicating-games-culture",
+     "at": "2026-11-02T01:47:07Z"
+    }
+   ]
+  },
+  {
+   "id": "tech-trigger-dev-customer-environment-variables-expos",
+   "kind": "story",
+   "domain": "tech",
+   "title": "Trigger.dev customer environment variables exposed",
+   "summary": "",
+   "lat": 37.39,
+   "lon": -122.08,
+   "place": "Mountain View",
+   "geo": "source",
+   "published": "2026-11-02",
+   "published_at": "2026-11-02T01:09:16Z",
+   "signal": 1,
+   "hn": 67,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Hacker News",
+     "url": "https://trigger.dev/blog/security-incident-nov-2026",
+     "at": "2026-11-02T01:09:16Z"
+    }
+   ]
   },
   {
    "id": "web-summit-2026",
