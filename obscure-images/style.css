@@ -1,5 +1,5 @@
-/* AAAWRDS: obscure images.
-   Rules: mono for everything, one heavy face for the wordmark, square corners, no shadows,
+/* Obscure Images.
+   Rules: mono for everything, one heavy face for the headline, square corners, no shadows,
    one accent used only for what is live. Images stay grey until you look at them. */
 :root {
   color-scheme: dark;
@@ -49,7 +49,7 @@ body::after {
   border-bottom: 1px solid var(--line);
 }
 .mark { color: var(--ink); text-decoration: none; font-family: var(--heavy); font-size: 1rem; letter-spacing: .02em; line-height: 1; }
-.mark span { font-family: var(--mono); font-size: .72rem; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-left: .9em; }
+.mark span { color: var(--accent); margin-left: .3em; }
 nav { display: flex; gap: 2px; }
 .navbtn {
   min-height: 44px; padding: 0 10px; background: none; border: 0;
@@ -64,17 +64,10 @@ nav { display: flex; gap: 2px; }
 /* ---------- layout ---------- */
 main { padding: 0 16px 48px; max-width: 1700px; margin: 0 auto; }
 .hero { padding: 28px 0 16px; }
-/* the wordmark is cropped on purpose: you only get the top of it */
-.wordmark {
-  font-family: var(--heavy); font-size: clamp(3rem, 17.4vw, 21rem);
-  line-height: .78; letter-spacing: -.065em; text-transform: uppercase;
-  height: .56em; overflow: hidden; white-space: nowrap;
-  margin: 0 0 14px -.04em; user-select: none;
-  color: var(--ink);
-}
 h1 {
-  margin: 0 0 .6em; font-size: .78rem; font-weight: 400;
-  letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+  margin: 0 0 .45em; font-family: var(--heavy); font-weight: 400;
+  font-size: clamp(2.4rem, 9vw, 7.5rem); line-height: .9; letter-spacing: -.05em;
+  text-transform: uppercase; max-width: 14ch;
 }
 .lede { margin: 0; color: var(--muted); max-width: 46rem; font-size: .82rem; }
 /* redactions: black bars that lift when you look at them */
@@ -220,7 +213,6 @@ dl.stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; 
 
 /* ---------- footer ---------- */
 footer { max-width: 1700px; margin: 0 auto; padding: 0 16px 64px; color: var(--muted); font-size: .76rem; }
-footer .sig { margin: 0 0 18px; letter-spacing: .14em; text-transform: uppercase; font-size: .66rem; }
 footer details { border-top: 1px solid var(--line); padding-top: 14px; max-width: 46rem; }
 footer summary { cursor: pointer; color: var(--ink); min-height: 32px; text-transform: uppercase; letter-spacing: .1em; font-size: .72rem; }
 footer li { margin: .6em 0; }
@@ -235,7 +227,6 @@ footer code { background: var(--surface); padding: .1em .4em; }
   .primary { margin-left: 0; }
   .scorebox .num { font-size: 3.6rem; }
   .two { grid-template-columns: 1fr; }
-  .mark span { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .card img, .meta, .redact { transition: none; }
