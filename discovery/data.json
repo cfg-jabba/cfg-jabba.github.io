@@ -1,0 +1,629 @@
+{
+ "generated": "2026-11-02T00:00:00Z",
+ "mode": "snapshot",
+ "note": "Hand-compiled from web searches on 2 Nov 2026. Items marked low confidence rest on a single secondary source. Live feeds replace the stories as soon as the scheduled build can reach them.",
+ "feeds_ok": [],
+ "feeds_failed": [],
+ "items": [
+  {
+   "id": "mbappe-china-brands",
+   "domain": "fashion",
+   "title": "Mbappé’s Mao remark ripples through his brand deals in China",
+   "summary": "Kylian Mbappé apologised for remarks read as joking about Mao Zedong. Chinese brands including Dongpeng and Mengniu cut ties; reports say Dior and Hublot removed related posts from Weibo (Dior declined to comment) and Swiss shoemaker On, which recently signed him, has not said what happens next.",
+   "lat": 31.23,
+   "lon": 121.47,
+   "place": "Shanghai",
+   "geo": "market",
+   "published": "2026-10-28",
+   "signal": 4,
+   "confidence": "high",
+   "sources": [
+    {
+     "name": "Al Jazeera",
+     "url": "https://www.aljazeera.com/sports/2026/10/28/kylian-mbappe-china-meme-mao-zedong-la-liga-real-madrid"
+    },
+    {
+     "name": "AP via ClickOnDetroit",
+     "url": "https://www.clickondetroit.com/business/2026/10/27/chinese-brands-cut-ties-with-french-soccer-star-mbappe-over-chinese-dictator-remark/"
+    },
+    {
+     "name": "Swissinfo (Bloomberg)",
+     "url": "https://www.swissinfo.ch/eng/mbapp%c3%a9-apologizes-for-perceived-mao-insult-after-china-backlash/92283541"
+    },
+    {
+     "name": "Bloomberg Línea",
+     "url": "https://www.bloomberglinea.com/mundo/que-marcas-rompieron-con-mbappe-tras-la-polemica-por-mao-en-china-lo-que-paso-con-on-y-dior/"
+    }
+   ],
+   "kind": "story"
+  },
+  {
+   "id": "winter-2026-trends",
+   "domain": "fashion",
+   "title": "Winter 2026: single wide-cuff jeans, fur trim, gilded drama and gothic lace",
+   "summary": "Who What Wear calls the wide cuff the denim trend of the season, alongside fur trim and jacquard holiday dresses; its luxury round-up points to gilded drama and gothic lace.",
+   "lat": 40.71,
+   "lon": -74.01,
+   "place": "New York",
+   "geo": "source",
+   "published": "2026-11-01",
+   "signal": 1,
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "Who What Wear",
+     "url": "https://whowhatwear.com/fashion/trends/luxury-fashion-trends-winter-2026"
+    },
+    {
+     "name": "Who What Wear (what to buy)",
+     "url": "https://www.whowhatwear.com/fashion/shopping/what-to-buy-in-november-2026"
+    }
+   ],
+   "kind": "story"
+  },
+  {
+   "id": "tapestry-ralph-lauren-earnings",
+   "domain": "fashion",
+   "title": "Tapestry (Coach) and Ralph Lauren report earnings this week",
+   "summary": "The Business of Fashion flags both American houses reporting this week, a read on how luxury and aspirational demand is holding up.",
+   "lat": 40.71,
+   "lon": -74.01,
+   "place": "New York",
+   "geo": "hq",
+   "published": "2026-11-02",
+   "signal": 1,
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "The Business of Fashion",
+     "url": "https://www.businessoffashion.com/"
+    }
+   ],
+   "kind": "story"
+  },
+  {
+   "id": "trent-q-results",
+   "domain": "fashion",
+   "title": "India’s Trent beats quarterly expectations",
+   "summary": "The Tata-group retailer posted results ahead of expectations, per The Business of Fashion.",
+   "lat": 19.08,
+   "lon": 72.88,
+   "place": "Mumbai",
+   "geo": "hq",
+   "published": "2026-11-02",
+   "signal": 1,
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "The Business of Fashion",
+     "url": "https://www.businessoffashion.com/"
+    }
+   ],
+   "kind": "story"
+  },
+  {
+   "id": "apple-intelligence-china-qwen",
+   "domain": "tech",
+   "title": "Apple Intelligence cleared in China, with Alibaba’s Qwen under the hood",
+   "summary": "China’s regulator approved Apple Intelligence on 15 July. Alibaba says Qwen will power it across iOS, iPadOS, macOS and visionOS for users in China. No launch date has been announced; an Apple support page naming Qwen was posted and pulled within a day.",
+   "lat": 39.9,
+   "lon": 116.41,
+   "place": "Beijing",
+   "geo": "market",
+   "published": "2026-07-15",
+   "signal": 4,
+   "confidence": "high",
+   "sources": [
+    {
+     "name": "Quartz",
+     "url": "https://qz.com/apple-intelligence-china-approval-alibaba-qwen-071526"
+    },
+    {
+     "name": "Gigazine",
+     "url": "https://gigazine.net/gsc_news/en/20260716-china-apple-intelligence/"
+    },
+    {
+     "name": "HWBusters",
+     "url": "https://hwbusters.com/news/apple-intelligence-clears-china-and-its-running-on-alibabas-qwen/"
+    },
+    {
+     "name": "Macerkopf",
+     "url": "https://www.macerkopf.de/2026/07/20/bericht-apple-qwen-entwickler-bord/"
+    }
+   ],
+   "kind": "story"
+  },
+  {
+   "id": "agibot-innovation-day",
+   "domain": "tech",
+   "title": "AgiBot Innovation Day: AHA3 humanoid platform and GO-3 Preview model",
+   "summary": "A bundle of embodied-AI launches from the Shanghai robotics company. Reported by a single AI newsletter, so treat details as unconfirmed.",
+   "lat": 31.23,
+   "lon": 121.47,
+   "place": "Shanghai",
+   "geo": "hq",
+   "published": "2026-11-01",
+   "signal": 1,
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "AI News Roundup (Substack)",
+     "url": "https://aialvin.substack.com/p/ai-news-roundup-10-developments-to-141"
+    }
+   ],
+   "kind": "story"
+  },
+  {
+   "id": "web-summit-2026",
+   "domain": "tech",
+   "title": "Web Summit",
+   "summary": "Europe’s biggest tech conference returns to Lisbon.",
+   "lat": 38.72,
+   "lon": -9.14,
+   "place": "Lisbon",
+   "geo": "venue",
+   "start": "2026-11-09",
+   "end": "2026-11-12",
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "Zip AI events calendar",
+     "url": "https://zipai.io/tech-events-calendar-2026-2027/"
+    },
+    {
+     "name": "Navan",
+     "url": "https://navan.com/blog/top-tech-conferences-2026-2027"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "slush-2026",
+   "domain": "tech",
+   "title": "Slush",
+   "summary": "Startup and venture gathering in Helsinki.",
+   "lat": 60.17,
+   "lon": 24.94,
+   "place": "Helsinki",
+   "geo": "venue",
+   "start": "2026-11-18",
+   "end": "2026-11-19",
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "Zip AI events calendar",
+     "url": "https://zipai.io/tech-events-calendar-2026-2027/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "kenya-fashion-week-2026",
+   "domain": "fashion",
+   "title": "Kenya Fashion Week",
+   "summary": "Runway day at MASSHOUSE in Nairobi.",
+   "lat": -1.29,
+   "lon": 36.82,
+   "place": "Nairobi",
+   "geo": "venue",
+   "start": "2026-11-22",
+   "end": "2026-11-22",
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "Rio Times",
+     "url": "https://www.riotimesonline.com/kenya-fashion-week-nairobi-22-november-2026-guide/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "reinvent-2026",
+   "domain": "tech",
+   "title": "AWS re:Invent",
+   "summary": "Amazon’s cloud conference; historically the year’s biggest cloud release wave.",
+   "lat": 36.17,
+   "lon": -115.14,
+   "place": "Las Vegas",
+   "geo": "venue",
+   "start": "2026-11-30",
+   "end": "2026-12-04",
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "Zip AI events calendar",
+     "url": "https://zipai.io/tech-events-calendar-2026-2027/"
+    },
+    {
+     "name": "The CTO Club",
+     "url": "https://thectoclub.com/career/best-tech-conferences/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "gtc-dc-2026",
+   "domain": "tech",
+   "title": "NVIDIA GTC Washington, D.C.",
+   "summary": "NVIDIA’s policy-and-industry GTC. Date comes from one calendar; confirm with NVIDIA.",
+   "lat": 38.91,
+   "lon": -77.04,
+   "place": "Washington, D.C.",
+   "geo": "venue",
+   "start": "2026-11-30",
+   "end": "2026-12-03",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Zip AI events calendar",
+     "url": "https://zipai.io/tech-events-calendar-2026-2027/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "neurips-2026",
+   "domain": "tech",
+   "title": "NeurIPS 2026",
+   "summary": "Machine-learning research conference. Location and dates come from one calendar; confirm on neurips.cc.",
+   "lat": -33.87,
+   "lon": 151.21,
+   "place": "Sydney",
+   "geo": "venue",
+   "start": "2026-12-06",
+   "end": "2026-12-13",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Zip AI events calendar",
+     "url": "https://zipai.io/tech-events-calendar-2026-2027/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "gitex-2026",
+   "domain": "tech",
+   "title": "GITEX Global",
+   "summary": "The Gulf’s largest technology show.",
+   "lat": 25.2,
+   "lon": 55.27,
+   "place": "Dubai",
+   "geo": "venue",
+   "start": "2026-12-08",
+   "end": "2026-12-11",
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "Zip AI events calendar",
+     "url": "https://zipai.io/tech-events-calendar-2026-2027/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "ces-2027",
+   "domain": "tech",
+   "title": "CES 2027",
+   "summary": "Consumer Technology Association’s annual show at the Las Vegas Convention Center.",
+   "lat": 36.17,
+   "lon": -115.14,
+   "place": "Las Vegas",
+   "geo": "venue",
+   "start": "2027-01-06",
+   "end": "2027-01-09",
+   "confidence": "high",
+   "sources": [
+    {
+     "name": "Zip AI events calendar",
+     "url": "https://zipai.io/tech-events-calendar-2026-2027/"
+    },
+    {
+     "name": "Navan",
+     "url": "https://navan.com/blog/top-tech-conferences-2026-2027"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "milan-menswear-aw27",
+   "domain": "fashion",
+   "title": "Milan Men’s Fashion Week AW27",
+   "summary": "Autumn/Winter 2027 menswear opens the year.",
+   "lat": 45.46,
+   "lon": 9.19,
+   "place": "Milan",
+   "geo": "venue",
+   "start": "2027-01-15",
+   "end": "2027-01-19",
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "Retail Boss calendar",
+     "url": "https://retailboss.co/fashion-week-2026-2027-full-schedule/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "paris-menswear-aw27",
+   "domain": "fashion",
+   "title": "Paris Men’s Fashion Week AW27",
+   "summary": "Autumn/Winter 2027 menswear in Paris.",
+   "lat": 48.86,
+   "lon": 2.35,
+   "place": "Paris",
+   "geo": "venue",
+   "start": "2027-01-19",
+   "end": "2027-01-24",
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "Retail Boss calendar",
+     "url": "https://retailboss.co/fashion-week-2026-2027-full-schedule/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "haute-couture-ss27",
+   "domain": "fashion",
+   "title": "Paris Haute Couture SS27",
+   "summary": "The Fédération de la Haute Couture et de la Mode’s official dates for Spring/Summer 2027 couture.",
+   "lat": 48.86,
+   "lon": 2.35,
+   "place": "Paris",
+   "geo": "venue",
+   "start": "2027-01-25",
+   "end": "2027-01-28",
+   "confidence": "high",
+   "sources": [
+    {
+     "name": "FHCM — Next seasons",
+     "url": "https://www.fhcm.paris/en/next-dates"
+    },
+    {
+     "name": "DSCENE",
+     "url": "https://designscene.net/?p=671035"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "copenhagen-fw-aw27",
+   "domain": "fashion",
+   "title": "Copenhagen Fashion Week AW27",
+   "summary": "Start of the womenswear season. Dates from one calendar; confirm with the organisers.",
+   "lat": 55.68,
+   "lon": 12.57,
+   "place": "Copenhagen",
+   "geo": "venue",
+   "start": "2027-02-01",
+   "end": "2027-02-05",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Retail Boss calendar",
+     "url": "https://retailboss.co/fashion-week-2026-2027-full-schedule/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "nyfw-aw27",
+   "domain": "fashion",
+   "title": "New York Fashion Week AW27",
+   "summary": "Dates from one calendar; confirm with the CFDA.",
+   "lat": 40.71,
+   "lon": -74.01,
+   "place": "New York",
+   "geo": "venue",
+   "start": "2027-02-08",
+   "end": "2027-02-12",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Retail Boss calendar",
+     "url": "https://retailboss.co/fashion-week-2026-2027-full-schedule/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "lfw-aw27",
+   "domain": "fashion",
+   "title": "London Fashion Week AW27",
+   "summary": "Dates from one calendar; confirm with the British Fashion Council.",
+   "lat": 51.51,
+   "lon": -0.13,
+   "place": "London",
+   "geo": "venue",
+   "start": "2027-02-18",
+   "end": "2027-02-22",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Retail Boss calendar",
+     "url": "https://retailboss.co/fashion-week-2026-2027-full-schedule/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "milan-fw-aw27",
+   "domain": "fashion",
+   "title": "Milan Fashion Week AW27",
+   "summary": "Dates from one calendar; confirm with Camera Nazionale della Moda Italiana.",
+   "lat": 45.46,
+   "lon": 9.19,
+   "place": "Milan",
+   "geo": "venue",
+   "start": "2027-02-23",
+   "end": "2027-03-01",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Retail Boss calendar",
+     "url": "https://retailboss.co/fashion-week-2026-2027-full-schedule/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "mwc-2027",
+   "domain": "tech",
+   "title": "MWC Barcelona 2027",
+   "summary": "Mobile World Congress at Fira Gran Via; exhibitor details still provisional.",
+   "lat": 41.39,
+   "lon": 2.17,
+   "place": "Barcelona",
+   "geo": "venue",
+   "start": "2027-03-01",
+   "end": "2027-03-04",
+   "confidence": "high",
+   "sources": [
+    {
+     "name": "Zip AI events calendar",
+     "url": "https://zipai.io/tech-events-calendar-2026-2027/"
+    },
+    {
+     "name": "Navan",
+     "url": "https://navan.com/blog/top-tech-conferences-2026-2027"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "paris-fw-aw27",
+   "domain": "fashion",
+   "title": "Paris Fashion Week AW27",
+   "summary": "The season closer. Dates from one calendar; confirm with the FHCM.",
+   "lat": 48.86,
+   "lon": 2.35,
+   "place": "Paris",
+   "geo": "venue",
+   "start": "2027-03-01",
+   "end": "2027-03-09",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Retail Boss calendar",
+     "url": "https://retailboss.co/fashion-week-2026-2027-full-schedule/"
+    },
+    {
+     "name": "FHCM — Next seasons",
+     "url": "https://www.fhcm.paris/en/next-dates"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "tokyo-fw-aw27",
+   "domain": "fashion",
+   "title": "Tokyo Fashion Week AW27",
+   "summary": "Dates from one calendar; confirm with the Japan Fashion Week Organization.",
+   "lat": 35.68,
+   "lon": 139.69,
+   "place": "Tokyo",
+   "geo": "venue",
+   "start": "2027-03-15",
+   "end": "2027-03-20",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Retail Boss calendar",
+     "url": "https://retailboss.co/fashion-week-2026-2027-full-schedule/"
+    }
+   ],
+   "kind": "event"
+  },
+  {
+   "id": "wow-forever",
+   "domain": "tech",
+   "title": "World of Warcraft: Forever",
+   "summary": "Listed for 4 November on PC and Mac by a games-release roundup.",
+   "lat": 33.65,
+   "lon": -117.74,
+   "place": "Irvine",
+   "geo": "hq",
+   "start": "2026-11-04",
+   "end": "2026-11-04",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Screen Rant",
+     "url": "https://screenrant.com/november-2026-video-games-releases-schedule-lineup"
+    }
+   ],
+   "kind": "release"
+  },
+  {
+   "id": "motorola-signature-27",
+   "domain": "tech",
+   "title": "Motorola Signature 27 global debut",
+   "summary": "Motorola has confirmed a 5 November global debut, according to a single launch round-up. Asus also lists its Zenbook 14 (2026) series for India the same day.",
+   "lat": 41.88,
+   "lon": -87.63,
+   "place": "Chicago",
+   "geo": "hq",
+   "start": "2026-11-05",
+   "end": "2026-11-05",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Analytics Insight",
+     "url": "https://www.analyticsinsight.net/news/november-2026-tech-launches-motorola-asus-apple-and-vivo-devices-to-watch"
+    }
+   ],
+   "kind": "release"
+  },
+  {
+   "id": "asus-zenbook-14-india",
+   "domain": "tech",
+   "title": "Asus Zenbook 14 (2026) launches in India",
+   "summary": "5 November, 12:00 IST, per a single launch round-up.",
+   "lat": 28.61,
+   "lon": 77.21,
+   "place": "New Delhi",
+   "geo": "market",
+   "start": "2026-11-05",
+   "end": "2026-11-05",
+   "confidence": "low",
+   "sources": [
+    {
+     "name": "Analytics Insight",
+     "url": "https://www.analyticsinsight.net/news/november-2026-tech-launches-motorola-asus-apple-and-vivo-devices-to-watch"
+    }
+   ],
+   "kind": "release"
+  },
+  {
+   "id": "gta-6",
+   "domain": "tech",
+   "title": "Grand Theft Auto VI",
+   "summary": "Rockstar’s date for PS5 and Xbox Series X|S. Widely reported and re-affirmed on Take-Two’s earnings call; no primary Rockstar page was found. No PC date announced.",
+   "lat": 40.71,
+   "lon": -74.01,
+   "place": "New York",
+   "geo": "hq",
+   "start": "2026-11-19",
+   "end": "2026-11-19",
+   "confidence": "medium",
+   "sources": [
+    {
+     "name": "Latestly",
+     "url": "https://www.latestly.com/gaming/gta-6-release-date-confirmed-november-19-2026-for-ps5-xbox-series-xs-7463038.html"
+    },
+    {
+     "name": "Gameluster",
+     "url": "https://gameluster.com/?p=140202"
+    },
+    {
+     "name": "PCGamesN",
+     "url": "https://www.pcgamesn.com/gta-6-release-date"
+    }
+   ],
+   "kind": "release"
+  }
+ ]
+}

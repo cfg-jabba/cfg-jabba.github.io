@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discovery Report — Clipper Studio Co</title>
+<meta name="description" content="A globe of what is trending and coming up in fashion and tech, with the sources and confidence behind every pin.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#fff; --fg:#1b1e22; --muted:#4a5257; --faint:#6b7480; --line:#d8dce0; --card:#f6f8fa;
+    --link:#0b5fc4;
+    --fashion:#c2185b; --tech:#1565c0;
+    --ocean:#eef2f6; --land:#d3dbe3; --border:#f6f8fa; --grat:#dfe5eb; --rim:#b9c4ce; --glow:21,101,192;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#14171a; --fg:#e6eae8; --muted:#a3adb0; --faint:#8a949c; --line:#2b3036; --card:#1b2024;
+    --link:#7fb8ff; --fashion:#ff7eb6; --tech:#6cb4ff;
+    --ocean:#0d1114; --land:#232b32; --border:#14171a; --grat:#1a2127; --rim:#3a444d; --glow:108,180,255;
+  } }
+  :root[data-theme="dark"] {
+    --bg:#14171a; --fg:#e6eae8; --muted:#a3adb0; --faint:#8a949c; --line:#2b3036; --card:#1b2024;
+    --link:#7fb8ff; --fashion:#ff7eb6; --tech:#6cb4ff;
+    --ocean:#0d1114; --land:#232b32; --border:#14171a; --grat:#1a2127; --rim:#3a444d; --glow:108,180,255;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 16px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  a { color: var(--link); }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+  header { display: flex; align-items: center; gap: 1.4em; padding: .7rem 1.25rem;
+           border-bottom: 1px solid var(--line); font-size: .95rem; height: 3.2rem; }
+  header strong { margin-right: auto; white-space: nowrap; }
+  header .status { color: var(--faint); font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 700px) { header .status, header .hide-s { display: none; } }
+
+  .app { display: grid; grid-template-columns: minmax(0,1fr) 26rem; height: calc(100dvh - 3.2rem); }
+  .stage { position: relative; min-height: 0; overflow: hidden; touch-action: none; }
+  canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  canvas.dragging { cursor: grabbing; }
+  canvas.hot { cursor: pointer; }
+
+  .overlay { position: absolute; display: flex; gap: .4rem; flex-wrap: wrap; }
+  .tl { top: .9rem; left: 1rem; }
+  .tr { top: .9rem; right: 1rem; flex-direction: column; }
+  .br { bottom: .9rem; right: 1rem; flex-direction: column; align-items: flex-end; font-size: .8rem; color: var(--muted); gap: .2rem; }
+  .chip, .iconbtn { border: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 88%, transparent);
+                    backdrop-filter: blur(6px); border-radius: 999px; padding: .28rem .8rem; font-size: .88rem; cursor: pointer;
+                    display: inline-flex; align-items: center; gap: .45rem; }
+  .chip[aria-pressed="false"] { opacity: .5; }
+  .chip[aria-pressed="false"] .dot { background: transparent !important; }
+  .iconbtn { width: 2.2rem; height: 2.2rem; padding: 0; justify-content: center; border-radius: 50%; font-size: 1.1rem; line-height: 1; }
+  .chip:hover, .iconbtn:hover { border-color: var(--faint); }
+  .dot { width: .7rem; height: .7rem; border-radius: 50%; border: 2px solid currentColor; display: inline-block; flex: none; }
+  .dot.fashion { color: var(--fashion); background: var(--fashion); }
+  .dot.tech { color: var(--tech); background: var(--tech); }
+  .legend { display: grid; grid-template-columns: auto auto; gap: .1rem .6rem; background: color-mix(in srgb, var(--bg) 85%, transparent);
+            padding: .4rem .6rem; border-radius: .6rem; border: 1px solid var(--line); }
+  .legend i { display: inline-block; width: .8rem; height: .8rem; vertical-align: -1px; margin-right: .3rem; border: 2px solid var(--faint); }
+  .legend .s { border-radius: 50%; background: var(--faint); } .legend .e { border-radius: 50%; } .legend .r { transform: rotate(45deg) scale(.8); background: var(--faint); }
+
+  .card { position: absolute; left: 1rem; bottom: 1rem; width: min(26rem, calc(100% - 2rem)); max-height: 52%; overflow: auto;
+          background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(8px);
+          border: 1px solid var(--line); border-radius: .8rem; padding: .9rem 1rem 1rem; box-shadow: 0 10px 40px rgba(0,0,0,.18); }
+  .card[hidden] { display: none; }
+  .card h2 { font-size: 1.05rem; line-height: 1.3; margin: .15rem 1.6rem .4rem 0; }
+  .card p { margin: .4rem 0; color: var(--muted); font-size: .93rem; }
+  .card .x { position: absolute; top: .45rem; right: .5rem; border: 0; background: none; font-size: 1.3rem; cursor: pointer; color: var(--faint); width: 2rem; height: 2rem; }
+  .meta { font-size: .8rem; color: var(--faint); display: flex; flex-wrap: wrap; gap: .2rem .8rem; align-items: center; }
+  .badge { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; padding: .05rem .45rem; border-radius: 999px; border: 1px solid currentColor; }
+  .badge.high { color: #1a7f4b; } .badge.medium { color: #9a6700; } .badge.low { color: #b3261e; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .badge.high { color:#5dd391 } :root:not([data-theme="light"]) .badge.medium { color:#e3b341 } :root:not([data-theme="light"]) .badge.low { color:#ff8a80 } }
+  .card ul { margin: .4rem 0 0; padding-left: 1.1rem; font-size: .88rem; }
+  .why { font-size: .78rem; color: var(--faint); margin-top: .5rem; }
+
+  .tip { position: fixed; pointer-events: none; z-index: 5; max-width: 18rem; font-size: .82rem; padding: .3rem .55rem; border-radius: .4rem;
+         background: var(--fg); color: var(--bg); transform: translate(12px, 12px); }
+  .tip[hidden] { display: none; }
+
+  .panel { overflow: auto; border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .panel > .top { padding: 1rem 1.1rem .6rem; position: sticky; top: 0; background: var(--bg); z-index: 2; border-bottom: 1px solid var(--line); }
+  .panel h1 { font-size: 1.35rem; line-height: 1.2; margin: 0 0 .25rem; letter-spacing: -.01em; }
+  .panel .lead { margin: 0 0 .7rem; color: var(--muted); font-size: .92rem; }
+  [role="tablist"] { display: flex; gap: .3rem; flex-wrap: wrap; }
+  [role="tab"] { border: 0; background: none; padding: .25rem .65rem; border-radius: 999px; cursor: pointer; color: var(--muted); font-size: .9rem; }
+  [role="tab"][aria-selected="true"] { background: var(--fg); color: var(--bg); }
+  .places { margin: .7rem 0 0; font-size: .8rem; color: var(--faint); }
+  .places b { color: var(--muted); font-weight: 600; }
+  .list { padding: .2rem 0 1.5rem; }
+  .list h3 { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 1.1rem 1.1rem .3rem; font-weight: 600; }
+  .row { display: grid; grid-template-columns: 1.1rem 1fr; gap: .15rem .6rem; width: 100%; text-align: left; border: 0; background: none;
+         padding: .6rem 1.1rem; cursor: pointer; border-top: 1px solid var(--line); }
+  .row:hover, .row[aria-current="true"] { background: var(--card); }
+  .row .dot { margin-top: .35rem; }
+  .row .t { font-size: .95rem; line-height: 1.35; }
+  .row .m { grid-column: 2; font-size: .8rem; color: var(--faint); display: flex; gap: .2rem .7rem; flex-wrap: wrap; align-items: center; }
+  .bar { display: inline-block; height: .32rem; border-radius: 2px; background: var(--faint); opacity: .55; vertical-align: middle; }
+  .empty { padding: 1.5rem 1.1rem; color: var(--muted); font-size: .92rem; }
+  footer.note { margin-top: auto; padding: 1rem 1.1rem 1.4rem; border-top: 1px solid var(--line); color: var(--faint); font-size: .8rem; }
+  footer.note p { margin: 0 0 .5rem; }
+
+  @media (max-width: 900px) {
+    .app { display: block; height: auto; }
+    .stage { height: min(68vh, calc(100vw + 3.5rem)); }
+    .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+    .panel > .top { position: static; }
+    .card { max-height: 60%; }
+    .br { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<header>
+  <strong>Clipper Studio Co · Discovery</strong>
+  <span class="status" id="status">Loading…</span>
+  <a class="hide-s" href="../index.html">Home</a>
+</header>
+
+<div class="app">
+  <section class="stage" id="stage" aria-label="Interactive globe">
+    <canvas id="globe" role="img" aria-label="Globe with pins for trending stories, upcoming events and releases. The list beside it has the same content."></canvas>
+
+    <div class="overlay tl" role="group" aria-label="Filter by topic">
+      <button class="chip" data-domain="fashion" aria-pressed="true"><span class="dot fashion"></span>Fashion</button>
+      <button class="chip" data-domain="tech" aria-pressed="true"><span class="dot tech"></span>Tech</button>
+    </div>
+    <div class="overlay tr">
+      <button class="iconbtn" id="zin" aria-label="Zoom in">+</button>
+      <button class="iconbtn" id="zout" aria-label="Zoom out">−</button>
+      <button class="iconbtn" id="spin" aria-label="Pause rotation" aria-pressed="true" title="Pause / resume rotation">⏸</button>
+    </div>
+    <div class="overlay br" aria-hidden="true">
+      <div class="legend">
+        <span><i class="s"></i>Trending</span><span>size = outlets</span>
+        <span><i class="e"></i>Upcoming</span><span>ring</span>
+        <span><i class="r"></i>Release</span><span>diamond</span>
+      </div>
+    </div>
+
+    <article class="card" id="card" hidden aria-live="polite"></article>
+    <div class="tip" id="tip" hidden></div>
+  </section>
+
+  <aside class="panel">
+    <div class="top">
+      <h1>What’s moving in fashion &amp; tech</h1>
+      <p class="lead">Trending stories, upcoming events and releases, pinned where they happen. Every pin shows its sources and how far to trust it.</p>
+      <div role="tablist" aria-label="Show">
+        <button role="tab" aria-selected="true" data-tab="all">Everything</button>
+        <button role="tab" aria-selected="false" data-tab="story">Trending</button>
+        <button role="tab" aria-selected="false" data-tab="event">Upcoming</button>
+        <button role="tab" aria-selected="false" data-tab="release">Releases</button>
+      </div>
+      <p class="places" id="places"></p>
+    </div>
+    <div class="list" id="list" aria-live="polite"></div>
+    <footer class="note">
+      <p id="note"></p>
+      <p><b>How to read it.</b> <em>Trending</em> pins are sized by how many independent outlets cover the story.
+         <em>Confidence</em>: high = official or several matching sources; medium = one reputable source; low = a single secondary source, so verify.
+         Pins on a headline are placed from a place or company named in it, and say so.</p>
+      <p>No cookies, no trackers. This page loads one data file and nothing else leaves your browser.</p>
+    </footer>
+  </aside>
+</div>
+
+<script src="vendor/globe-libs.js"></script>
+<script>
+(() => {
+  "use strict";
+  const { geoOrthographic, geoPath, geoGraticule10, geoDistance, feature, mesh } = GL;
+  const $ = (s, r = document) => r.querySelector(s);
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const qs = new URLSearchParams(location.search);
+  const NOW = qs.get("now") ? new Date(qs.get("now") + "T12:00:00Z") : new Date();
+  const TODAY = NOW.toISOString().slice(0, 10);
+  const DAY = 864e5;
+  const dayNum = d => Math.round(Date.parse(d + "T00:00:00Z") / DAY);
+  const fmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  const fmtY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  const KIND_LABEL = { story: "Trending", event: "Upcoming", release: "Release" };
+  const GEO_WHY = {
+    venue: "Pinned at the event venue.", market: "Pinned at the market the news concerns.",
+    hq: "Pinned at the company’s headquarters, the closest anchor in the headline.",
+    mentioned: "Pinned from a place named in the headline.", source: "No place found in the headline; pinned at the outlet’s home city."
+  };
+
+  // ---------- tiny DOM helper (never innerHTML: feed text is untrusted) ----------
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null || v === false) continue;
+      if (k === "class") el.className = v; else if (k === "text") el.textContent = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? "" : v);
+    }
+    for (const k of kids.flat()) if (k != null) el.append(k.nodeType ? k : document.createTextNode(k));
+    return el;
+  }
+  const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : null;
+
+  // ---------- dates ----------
+  function span(it) {
+    if (!it.start) return it.published ? fmtY.format(new Date(it.published + "T00:00:00Z")) : "";
+    const a = new Date(it.start + "T00:00:00Z"), b = new Date((it.end || it.start) + "T00:00:00Z");
+    const yr = a.getUTCFullYear() !== NOW.getUTCFullYear() ? " " + a.getUTCFullYear() : "";
+    if (it.end === it.start || !it.end) return fmt.format(a) + yr;
+    if (a.getUTCMonth() === b.getUTCMonth() && a.getUTCFullYear() === b.getUTCFullYear()) return `${a.getUTCDate()}–${fmt.format(b)}${yr}`;
+    return `${fmt.format(a)} – ${fmt.format(b)}${yr}`;
+  }
+  function when(it) {
+    if (it.kind === "story") {
+      const d = dayNum(TODAY) - dayNum(it.published);
+      return d <= 0 ? "today" : d === 1 ? "yesterday" : d < 30 ? `${d} days ago` : fmtY.format(new Date(it.published + "T00:00:00Z"));
+    }
+    const s = dayNum(it.start) - dayNum(TODAY), e = dayNum(it.end || it.start) - dayNum(TODAY);
+    if (s <= 0 && e >= 0) return "on now";
+    return s === 1 ? "tomorrow" : s < 60 ? `in ${s} days` : `in ${Math.round(s / 30)} months`;
+  }
+
+  // ---------- state ----------
+  let data = null, items = [], map = null;
+  const state = { domains: { fashion: true, tech: true }, tab: "all", selected: null, hover: null };
+
+  const visible = () => items.filter(i => state.domains[i.domain] && (state.tab === "all" || i.kind === state.tab));
+
+  // ---------- globe ----------
+  const canvas = $("#globe"), stage = $("#stage"), ctx = canvas.getContext("2d");
+  const proj = geoOrthographic().clipAngle(90).precision(0.4);
+  const path = geoPath(proj, ctx);
+  const sphere = { type: "Sphere" }, grat = geoGraticule10();
+  let W = 0, H = 0, R0 = 0, dpr = 1, zoom = 1, rot = [-10, -25, 0];
+  let dirty = true, spinning = !reduceMotion, lastInteract = -1e9, fly = null, pins = [];
+  let css = {};
+
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement);
+    for (const k of ["ocean", "land", "border", "grat", "rim", "glow", "fashion", "tech", "faint", "fg", "bg"]) css[k] = cs.getPropertyValue("--" + k).trim();
+    dirty = true;
+  }
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = r.width; H = r.height;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    R0 = Math.min(W, H) / 2 - 18;
+    proj.translate([W / 2, H / 2]);
+    dirty = true;
+  }
+
+  function layoutPins() {
+    // Items that share a place are fanned out so none is hidden under another.
+    const vis = visible(), groups = new Map();
+    for (const it of vis) { const k = it.lat.toFixed(2) + "," + it.lon.toFixed(2); (groups.get(k) || groups.set(k, []).get(k)).push(it); }
+    const out = [];
+    for (const g of groups.values()) g.forEach((it, i) => out.push({ it, dx: g.length > 1 ? Math.cos(i / g.length * 6.2832 - 1.57) * (7 + g.length) : 0,
+                                                                     dy: g.length > 1 ? Math.sin(i / g.length * 6.2832 - 1.57) * (7 + g.length) : 0 }));
+    return out;
+  }
+  let layout = [];
+
+  function draw(t) {
+    proj.scale(R0 * zoom).rotate(rot);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const cx = W / 2, cy = H / 2, R = R0 * zoom;
+
+    // atmosphere
+    const g = ctx.createRadialGradient(cx, cy, R * .96, cx, cy, R * 1.14);
+    g.addColorStop(0, `rgba(${css.glow},.18)`); g.addColorStop(1, `rgba(${css.glow},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 1.14, 0, 6.2832); ctx.fill();
+
+    ctx.beginPath(); path(sphere); ctx.fillStyle = css.ocean; ctx.fill();
+    ctx.beginPath(); path(grat); ctx.strokeStyle = css.grat; ctx.lineWidth = .6; ctx.stroke();
+    if (map) {
+      ctx.beginPath(); path(map.land); ctx.fillStyle = css.land; ctx.fill();
+      ctx.beginPath(); path(map.borders); ctx.strokeStyle = css.border; ctx.lineWidth = .6; ctx.stroke();
+    }
+    ctx.beginPath(); path(sphere); ctx.strokeStyle = css.rim; ctx.lineWidth = 1; ctx.stroke();
+
+    // pins
+    const center = [-rot[0], -rot[1]];
+    pins = [];
+    for (const p of layout) {
+      const it = p.it;
+      if (geoDistance([it.lon, it.lat], center) > 1.5) continue;
+      const xy = proj([it.lon, it.lat]); if (!xy) continue;
+      const x = xy[0] + p.dx, y = xy[1] + p.dy;
+      const col = css[it.domain], sel = state.selected === it, hov = state.hover === it;
+      const base = it.kind === "story" ? 4.5 + 2.2 * Math.sqrt(it.signal || 1) : 5.5;
+      const r = base + (hov ? 1.5 : 0);
+      pins.push({ it, x, y, r: Math.max(r, 9) });
+      ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.fillStyle = col;
+      if (it.kind === "story") {
+        if (!reduceMotion) { // slow pulse
+          const ph = ((t || 0) / 2200 + (it.lat * 7 + it.lon * 3) % 1) % 1;
+          ctx.globalAlpha = .35 * (1 - ph); ctx.beginPath(); ctx.arc(x, y, r + ph * 12, 0, 6.2832); ctx.stroke(); ctx.globalAlpha = 1;
+        }
+        ctx.globalAlpha = .88; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.strokeStyle = css.bg; ctx.lineWidth = 1.5; ctx.stroke();
+      } else if (it.kind === "event") {
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fillStyle = css.bg; ctx.globalAlpha = .75; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, y, 1.8, 0, 6.2832); ctx.fillStyle = col; ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath();
+        ctx.globalAlpha = .9; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = css.bg; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      if (sel) { ctx.strokeStyle = css.fg; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r + 5, 0, 6.2832); ctx.stroke(); }
+    }
+  }
+
+  let lastT = 0;
+  function frame(t) {
+    const dt = Math.min(t - lastT, 64); lastT = t;
+    if (fly) {
+      const k = Math.min(1, (t - fly.t0) / fly.dur), e = k < .5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
+      rot = [fly.from[0] + fly.dl * e, fly.from[1] + (fly.to[1] - fly.from[1]) * e, 0];
+      zoom = fly.z0 + (fly.z1 - fly.z0) * e;
+      if (k >= 1) fly = null; dirty = true;
+    } else if (spinning && !drag && t - lastInteract > 3500 && !state.selected) {
+      rot[0] -= dt * 0.006; dirty = true;
+    }
+    if (dirty || !reduceMotion) { draw(t); dirty = false; }
+    requestAnimationFrame(frame);
+  }
+
+  function flyTo(it) {
+    const to = [-it.lon, Math.max(-70, Math.min(70, -it.lat))];
+    const dl = ((to[0] - rot[0] + 540) % 360) - 180;
+    if (reduceMotion) { rot = [rot[0] + dl, to[1], 0]; zoom = Math.max(zoom, 1.5); dirty = true; return; }
+    fly = { t0: performance.now(), dur: 950, from: [rot[0], rot[1]], to, dl, z0: zoom, z1: Math.max(zoom, 1.5) };
+  }
+
+  // ---------- interaction ----------
+  let drag = null; const pointers = new Map(); let pinch0 = 0;
+  const touch = () => { lastInteract = performance.now(); fly = null; };
+  const clampZoom = z => Math.max(.8, Math.min(4, z));
+  function hit(x, y) {
+    let best = null, bd = 1e9;
+    for (const p of pins) { const d = Math.hypot(p.x - x, p.y - y); if (d <= p.r + 4 && d < bd) { best = p; bd = d; } }
+    return best && best.it;
+  }
+  const local = e => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+
+  canvas.addEventListener("pointerdown", e => {
+    canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]); touch();
+    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]) / zoom; drag = null; }
+    else { drag = { x: e.clientX, y: e.clientY, moved: 0 }; canvas.classList.add("dragging"); }
+  });
+  canvas.addEventListener("pointermove", e => {
+    const [lx, ly] = local(e);
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()]; zoom = clampZoom(Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch0); touch(); dirty = true; return;
+    }
+    if (drag) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy);
+      const k = 0.32 / zoom; rot = [rot[0] + dx * k, Math.max(-85, Math.min(85, rot[1] - dy * k)), 0]; touch(); dirty = true;
+    }
+    const it = drag && drag.moved > 4 ? null : hit(lx, ly);
+    if (it !== state.hover) { state.hover = it; dirty = true; canvas.classList.toggle("hot", !!it); }
+    const tip = $("#tip");
+    if (it) { tip.hidden = false; tip.textContent = it.title; tip.style.left = e.clientX + "px"; tip.style.top = e.clientY + "px"; } else tip.hidden = true;
+  });
+  const end = e => {
+    const wasClick = drag && drag.moved <= 4 && pointers.size <= 1;
+    pointers.delete(e.pointerId); canvas.classList.remove("dragging");
+    if (wasClick && e.type === "pointerup") { const [lx, ly] = local(e); const it = hit(lx, ly); it ? select(it, { fly: true }) : select(null); }
+    drag = null;
+  };
+  canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
+  canvas.addEventListener("pointerleave", () => { state.hover = null; $("#tip").hidden = true; dirty = true; });
+  canvas.addEventListener("wheel", e => { e.preventDefault(); touch(); zoom = clampZoom(zoom * Math.exp(-e.deltaY * 0.0015)); dirty = true; }, { passive: false });
+  $("#zin").onclick = () => { touch(); zoom = clampZoom(zoom * 1.3); dirty = true; };
+  $("#zout").onclick = () => { touch(); zoom = clampZoom(zoom / 1.3); dirty = true; };
+  $("#spin").onclick = e => {
+    spinning = !spinning; e.currentTarget.setAttribute("aria-pressed", String(spinning));
+    e.currentTarget.textContent = spinning ? "⏸" : "▶"; e.currentTarget.setAttribute("aria-label", spinning ? "Pause rotation" : "Resume rotation");
+  };
+  if (reduceMotion) { $("#spin").textContent = "▶"; $("#spin").setAttribute("aria-pressed", "false"); $("#spin").setAttribute("aria-label", "Resume rotation"); }
+  addEventListener("keydown", e => { if (e.key === "Escape") select(null); });
+  document.querySelectorAll(".chip").forEach(b => b.onclick = () => {
+    const d = b.dataset.domain; state.domains[d] = !state.domains[d]; b.setAttribute("aria-pressed", String(state.domains[d]));
+    if (state.selected && !state.domains[state.selected.domain]) select(null); refresh();
+  });
+  document.querySelectorAll("[role=tab]").forEach(b => b.onclick = () => {
+    state.tab = b.dataset.tab; document.querySelectorAll("[role=tab]").forEach(x => x.setAttribute("aria-selected", String(x === b)));
+    if (state.selected && !visible().includes(state.selected)) select(null); refresh();
+  });
+
+  // ---------- card + list ----------
+  function select(it, opts = {}) {
+    state.selected = it; dirty = true;
+    const card = $("#card");
+    document.querySelectorAll(".row").forEach(r => r.setAttribute("aria-current", String(r.dataset.id === (it && it.id))));
+    if (!it) { card.hidden = true; return; }
+    if (opts.fly) flyTo(it);
+    const dom = it.domain === "fashion" ? "Fashion" : "Tech";
+    const srcs = (it.sources || []).filter(s => safeUrl(s.url));
+    card.replaceChildren(
+      h("button", { class: "x", "aria-label": "Close details", onclick: () => select(null) }, "×"),
+      h("div", { class: "meta" }, h("span", { class: "dot " + it.domain }), h("span", { text: `${dom} · ${KIND_LABEL[it.kind]}` }),
+        h("span", { class: "badge " + it.confidence, title: "How far to trust this item" }, it.confidence + " confidence")),
+      h("h2", { text: it.title }),
+      it.summary ? h("p", { text: it.summary }) : null,
+      h("div", { class: "meta" }, h("span", { text: it.place }), h("span", { text: `${span(it)} · ${when(it)}` }),
+        it.kind === "story" ? h("span", { text: `${it.signal} outlet${it.signal === 1 ? "" : "s"}` }) : null,
+        it.hn ? h("span", { text: `${it.hn} pts on Hacker News` }) : null),
+      srcs.length ? h("ul", {}, srcs.map(s => h("li", {}, h("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener noreferrer", text: s.name })))) : null,
+      h("div", { class: "why", text: GEO_WHY[it.geo] || "" })
+    );
+    card.hidden = false;
+    const row = $(`.row[data-id="${CSS.escape(it.id)}"]`); if (row) row.scrollIntoView({ block: "nearest" });
+  }
+
+  function row(it, maxSignal) {
+    return h("button", { class: "row", "data-id": it.id, "aria-current": String(state.selected === it), onclick: () => select(it, { fly: true }) },
+      h("span", { class: "dot " + it.domain, "aria-label": it.domain }),
+      h("span", { class: "t", text: it.title }),
+      h("span", { class: "m" }, h("span", { text: it.place }), h("span", { text: it.kind === "story" ? when(it) : span(it) + " · " + when(it) }),
+        it.kind === "story" ? h("span", { title: `${it.signal} outlet(s)` }, h("span", { class: "bar", style: `width:${8 + 30 * it.signal / maxSignal}px` }), ` ${it.signal}`) : null,
+        it.confidence === "low" ? h("span", { class: "badge low" }, "verify") : null));
+  }
+
+  function renderList() {
+    const vis = visible(), list = $("#list"); list.replaceChildren();
+    if (!vis.length) { list.append(h("div", { class: "empty", text: "Nothing to show with these filters." })); return; }
+    const by = k => vis.filter(i => i.kind === k);
+    const stories = by("story").sort((a, b) => b.signal - a.signal || b.published.localeCompare(a.published));
+    const events = by("event").sort((a, b) => a.start.localeCompare(b.start));
+    const releases = by("release").sort((a, b) => a.start.localeCompare(b.start));
+    const maxS = Math.max(1, ...stories.map(s => s.signal));
+    for (const [label, arr] of [["Trending", stories], ["Upcoming", events], ["Releases", releases]]) {
+      if (!arr.length) continue;
+      list.append(h("h3", { text: `${label} · ${arr.length}` }), ...arr.map(i => row(i, maxS)));
+    }
+  }
+
+  function renderPlaces() {
+    const c = new Map(); for (const i of visible()) c.set(i.place, (c.get(i.place) || 0) + 1);
+    const top = [...c].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 5);
+    const el = $("#places"); el.replaceChildren();
+    if (top.length) el.append("Most active places: ", ...top.flatMap(([p, n], i) => [i ? " · " : "", h("b", { text: p }), ` ${n}`]));
+  }
+
+  function refresh() { layout = layoutPins(); renderList(); renderPlaces(); dirty = true; }
+
+  // ---------- boot ----------
+  async function boot() {
+    readColors(); resize();
+    new ResizeObserver(resize).observe(stage);
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readColors);
+    requestAnimationFrame(frame);
+    try {
+      const [d, topo] = await Promise.all([
+        fetch("data.json", { cache: "no-cache" }).then(r => { if (!r.ok) throw new Error("data " + r.status); return r.json(); }),
+        fetch("vendor/countries-110m.json").then(r => r.json())
+      ]);
+      map = { land: feature(topo, topo.objects.land), borders: mesh(topo, topo.objects.countries, (a, b) => a !== b) };
+      data = d;
+      // Past events drop off; malformed rows are ignored rather than breaking the page.
+      items = (d.items || []).filter(i => i && isFinite(i.lat) && isFinite(i.lon) && i.id && i.title &&
+        (i.kind === "story" || (i.end || i.start || "") >= TODAY));
+      const gen = new Date(d.generated);
+      const stamp = isNaN(gen) ? "" : gen.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+      $("#status").textContent = `${d.mode === "live" ? "Live feeds" : "Snapshot"} · updated ${stamp} · ${items.length} items`;
+      $("#note").textContent = d.note || "";
+      refresh();
+      const top = items.filter(i => i.kind === "story").sort((a, b) => b.signal - a.signal)[0];
+      if (top) { rot = [-top.lon + 40, -Math.max(-60, Math.min(60, top.lat)) , 0]; }
+      dirty = true;
+      const want = qs.get("open"); if (want) { const it = items.find(i => i.id === want); if (it) select(it, { fly: true }); }
+    } catch (err) {
+      $("#status").textContent = "Couldn’t load data";
+      $("#list").replaceChildren(h("div", { class: "empty", text: "The data file didn’t load. If you opened this page straight from disk, serve it over http (for example: python3 -m http.server)." }));
+    }
+  }
+  if (qs.has("debug")) window.__d = { rot: () => rot.slice(), zoom: () => zoom };
+  boot();
+})();
+</script>
+</body>
+</html>
