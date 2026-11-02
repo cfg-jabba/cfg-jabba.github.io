@@ -503,6 +503,9 @@ async function dig(fromUser = false) {
     setDigButtons();
     setStatus();
     setTimeout(maybeMore, found ? 0 : 5000);
+    if (state.scanned === 0 && !banner.textContent && !state.stop) {
+      showBanner('Nothing came back. A blocker or a flaky connection may be stopping Wikimedia and the Internet Archive from answering. Hit Dig to try again.');
+    }
     if (!grid.children.length && state.scanned > 0 && !banner.textContent) {
       statusEl.textContent += ' · nothing this obscure yet, dig deeper';
     }

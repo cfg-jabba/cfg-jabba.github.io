@@ -3,26 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Obscure Images</title>
+<title>AAAWRDS: Obscure Images</title>
 <meta name="description" content="A feed of images almost nobody has seen, each with an obscurity rating based on how many times it has actually been viewed.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0b0c'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23d4ff3f' stroke-width='3'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23070707'/%3E%3Cpath d='M6 24 16 6l10 18z' fill='none' stroke='%23ceff00' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 
 <header class="top">
-  <a class="mark" href="./" aria-label="Obscure Images, home">OBSCURE<span>IMAGES</span></a>
+  <a class="mark" href="./" aria-label="AAAWRDS, obscure images, home">AAAWRDS<span>/ obscure images</span></a>
   <nav aria-label="Sections">
     <button type="button" class="navbtn" data-view="dig" aria-pressed="true">Dig</button>
-    <button type="button" class="navbtn" data-view="saved" aria-pressed="false">Saved <span id="savedCount" class="count">0</span></button>
+    <button type="button" class="navbtn" data-view="saved" aria-pressed="false">Vault <span id="savedCount" class="count">0</span></button>
   </nav>
 </header>
 
 <main>
   <section id="digView" aria-labelledby="h1">
     <div class="hero">
+      <div class="wordmark" aria-hidden="true">AAAWRDS</div>
       <h1 id="h1">Images almost nobody has&nbsp;seen.</h1>
-      <p class="lede">Every image here is pulled at random from Wikimedia Commons or the Internet Archive, then checked against that library&rsquo;s own view or download counts. If a lot of people have seen it, it doesn&rsquo;t make the feed.</p>
+      <p class="lede">Pulled at random from <span class="redact">Wikimedia Commons</span> and the <span class="redact">Internet Archive</span>, then checked against their own <span class="redact">view and download counts</span>. If people have seen it, it doesn&rsquo;t make the feed. Nobody gave these an award.</p>
     </div>
 
     <div class="controls">
@@ -37,7 +38,7 @@
         <button type="button" class="chip srcchip" data-source="commons" aria-pressed="false">Wikimedia</button>
         <button type="button" class="chip srcchip" data-source="archive" aria-pressed="false">Internet Archive</button>
       </div>
-      <label class="toggle"><input type="checkbox" id="noise" checked> Hide logos, scans, maps &amp; diagrams</label>
+      <label class="toggle"><input type="checkbox" id="noise" checked> hide logos / scans / maps / diagrams</label>
       <button type="button" class="primary digBtn">Dig</button>
     </div>
 
@@ -58,8 +59,8 @@
 
   <section id="savedView" hidden aria-labelledby="h2">
     <div class="hero">
-      <h1 id="h2">Saved</h1>
-      <p class="lede">Your private stash, stored in this browser. Export it with credits and licenses when you take something to a brief.</p>
+      <h1 id="h2">Vault</h1>
+      <p class="lede">Your private stash, kept in this browser. Export it with credits and licenses when you take something to a brief.</p>
     </div>
     <div class="controls">
       <button type="button" class="primary" id="addFind">+ Add your own find</button>
@@ -80,6 +81,7 @@
 </main>
 
 <footer>
+  <p class="sig">AAAWRDS.COM &mdash; no awards, no audience.</p>
   <details>
     <summary>How the obscurity rating works</summary>
     <ol>
@@ -122,6 +124,6 @@
 </dialog>
 
 <noscript><p class="empty">Obscure Images needs JavaScript to dig up images.</p></noscript>
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
