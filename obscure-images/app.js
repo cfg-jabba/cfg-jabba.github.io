@@ -11,7 +11,10 @@ const STATS_START = '20150101'; // earliest month Wikimedia has data for
 const BATCH_SIZE = 50;          // random files per Commons call
 const TARGET_MATCHES = 16;      // matches to find per "Dig"
 const MAX_ROUNDS = 8;           // give up after this many batches per "Dig"
-const STATS_CONCURRENCY = 6;
+const STATS_CONCURRENCY = 4;
+const STATS_GAP = 350;          // ms between view-count lookups (Wikimedia rate-limits bursts)
+const STATS_RETRIES = 3;        // extra tries when Wikimedia says "slow down"
+const STATS_CACHE_MAX = 3000;   // view counts remembered in this browser
 
 const TIERS = [
   { key: 'ghost',      name: 'Ghost',      max: 4 },
@@ -93,6 +96,7 @@ const state = {
   scanned: 0,
   statsData: 0,             // lookups that returned real data
   digging: false,
+  slowUntil: 0,             // Wikimedia asked us to wait until this time
   stop: false,
   saved: store.get('saved', {}),       // id -> item snapshot (+ note)
   localViews: store.get('localViews', {}), // id -> times opened on this site, this browser
@@ -108,11 +112,15 @@ const totalViews = it => it.commons + siteViews(it);
 async function fetchCandidates() {
   const params = new URLSearchParams({
     action: 'query', format: 'json', origin: '*',
+    // Commons caches identical requests for an hour, which would hand back the same
+    // "random" 50 files every time. A throwaway parameter makes each request unique
+    // (the API ignores it, with a harmless warning).
+    nocache: Math.random().toString(36).slice(2),
     generator: 'random', grnnamespace: '6', grnlimit: String(BATCH_SIZE),
-    prop: 'imageinfo', iiprop: 'url|size|mime|extmetadata', iiurlwidth: '900',
+    prop: 'imageinfo|globalusage', gulimit: 'max', iiprop: 'url|size|mime|extmetadata', iiurlwidth: '900',
     iiextmetadatafilter: 'Artist|LicenseShortName|LicenseUrl|ImageDescription|DateTimeOriginal',
   });
-  const res = await fetch(`${COMMONS_API}?${params}`);
+  const res = await fetch(`${COMMONS_API}?${params}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Commons responded ${res.status}`);
   const json = await res.json();
   const q = json.query && json.query.pages;
@@ -127,6 +135,9 @@ async function fetchCandidates() {
     const ratio = info.width / info.height;
     if (ratio < 0.4 || ratio > 3) continue;
     if (state.seenIds.has(p.pageid)) continue;
+    // A file that sits on a Wikipedia page is almost never rare, and each view-count
+    // lookup is rationed by Wikimedia (see takeTurn), so don't spend lookups on those.
+    if (p.globalusage && p.globalusage.length) continue;
 
     const md = info.extmetadata || {};
     const val = k => plain(md[k] && md[k].value);
@@ -160,19 +171,58 @@ const last12From = (() => {
   return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}0100`;
 })();
 
+// Wikimedia limits how fast one visitor can ask for view counts (it answers 429 "slow down",
+// with a Retry-After in seconds). Every lookup takes a turn in one shared line, spaced
+// STATS_GAP apart, and a 429 pauses the whole line.
+let nextSlot = 0;
+let throttledUntil = 0;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function takeTurn() {
+  const slot = Math.max(Date.now(), nextSlot, throttledUntil);
+  nextSlot = slot + STATS_GAP;
+  const wait = slot - Date.now();
+  if (wait > 0) await sleep(wait);
+}
+
+// Counts we already looked up are kept in this browser, so a file seen twice costs nothing.
+const statsCache = store.get('statsCache', {});
+function cacheStats(path, r) {
+  statsCache[path] = { s: r.status, t: r.total, l: r.last12, m: monthStart };
+  const keys = Object.keys(statsCache);
+  if (keys.length > STATS_CACHE_MAX) for (const k of keys.slice(0, keys.length - STATS_CACHE_MAX)) delete statsCache[k];
+  store.set('statsCache', statsCache);
+}
+
 // Returns { status: 'data' | 'none' | 'error', total, last12 }.
 // Wikimedia answers 404 for a file with no recorded requests, which for us means "nobody saw it".
 async function fetchViews(file) {
+  const hit = statsCache[file.path];
+  if (hit && hit.m === monthStart) return { status: hit.s, total: hit.t, last12: hit.l };
+
   let decoded;
   try { decoded = decodeURIComponent(file.path); } catch { decoded = file.path; }
-  const candidates = [...new Set([encodeURIComponent(decoded), encodeURIComponent(file.path)])];
+  const url = `${STATS_API}/${encodeURIComponent(decoded)}/monthly/${STATS_START}/${STATS_END}`;
 
-  let sawNotFound = false;
-  for (const encoded of candidates) {
+  for (let attempt = 0; attempt <= STATS_RETRIES; attempt++) {
+    await takeTurn();
+    let res;
+    try { res = await fetch(url); } catch { return { status: 'error' }; }
+
+    if (res.status === 429) {
+      // Browsers can't read Retry-After from this API; Wikimedia's own wait is ~25-55 s.
+      const secs = Math.min(Number(res.headers.get('retry-after')) || 20 * (attempt + 1), 60);
+      throttledUntil = Date.now() + secs * 1000;
+      state.slowUntil = throttledUntil;
+      continue;
+    }
+    if (res.status === 404) {
+      const r = { status: 'none', total: 0, last12: 0 };
+      cacheStats(file.path, r);
+      return r;
+    }
+    if (!res.ok) return { status: 'error' };
     try {
-      const res = await fetch(`${STATS_API}/${encoded}/monthly/${STATS_START}/${STATS_END}`);
-      if (res.status === 404) { sawNotFound = true; continue; }
-      if (!res.ok) return { status: 'error' };
       const json = await res.json();
       let total = 0, last12 = 0;
       for (const row of json.items || []) {
@@ -180,12 +230,14 @@ async function fetchViews(file) {
         total += row.requests;
         if (row.timestamp >= last12From) last12 += row.requests;
       }
-      return { status: 'data', total, last12 };
+      const r = { status: 'data', total, last12 };
+      cacheStats(file.path, r);
+      return r;
     } catch {
       return { status: 'error' };
     }
   }
-  return sawNotFound ? { status: 'none', total: 0, last12: 0 } : { status: 'error' };
+  return { status: 'error' };
 }
 
 /* ------------------------------------------------------------------ *
@@ -235,7 +287,8 @@ function tierLabel() {
 
 function setStatus() {
   const shown = grid.children.length;
-  const where = state.digging ? 'Digging… ' : '';
+  const slow = state.digging && Date.now() < state.slowUntil;
+  const where = slow ? 'Wikimedia asked us to slow down, waiting a moment… ' : state.digging ? 'Digging… ' : '';
   statusEl.textContent = state.scanned === 0
     ? where
     : `${where}Scanned ${fmt(state.scanned)} files · ${fmt(shown)} ${tierLabel()} on screen`;
