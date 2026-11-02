@@ -8,6 +8,19 @@ const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
 // Internet Archive's search returns each item's all-time download count in the same call,
 // so unlike Commons it needs no per-file lookup (and no rationing).
 const ARCHIVE_API = 'https://archive.org/advancedsearch.php';
+// Design "lenses": steer the feed toward a kind of reference. Each is a handful of search
+// words; a custom lens is whatever the designer types. 'all' means no steering.
+const LENSES = {
+  all:       { name: 'Anything', words: [] },
+  materials: { name: 'Materials', words: ['texture', 'fabric', 'textile', 'leather', 'wood grain', 'marble', 'ceramic', 'stone', 'weave', 'metal surface'] },
+  patterns:  { name: 'Patterns', words: ['pattern', 'ornament', 'wallpaper', 'tile', 'mosaic', 'lattice', 'geometric', 'repeat'] },
+  packaging: { name: 'Packaging', words: ['label', 'packaging', 'tin', 'matchbox', 'bottle', 'wrapper', 'box', 'crate label'] },
+  lettering: { name: 'Lettering', words: ['lettering', 'typography', 'signage', 'calligraphy', 'type specimen', 'hand painted sign', 'inscription'] },
+  print:     { name: 'Posters & print', words: ['poster', 'lithograph', 'woodblock', 'screenprint', 'engraving', 'broadside', 'ephemera'] },
+  objects:   { name: 'Objects', words: ['industrial design', 'furniture', 'chair', 'lamp', 'tool', 'prototype', 'appliance', 'machine'] },
+  spaces:    { name: 'Spaces', words: ['interior', 'architecture', 'staircase', 'facade', 'brutalist', 'pavilion', 'lobby', 'ceiling'] },
+  sport:     { name: 'Footwear & sport', words: ['shoe', 'sneaker', 'boot', 'sportswear', 'athletic', 'running', 'stadium', 'uniform', 'equipment'] },
+};
 const SOURCES = {
   commons: 'Wikimedia Commons',
   archive: 'Internet Archive',
@@ -31,6 +44,9 @@ const TIERS = [
   { key: 'everywhere', name: 'Everywhere', max: Infinity },
 ];
 
+// With a design lens on, words like "poster", "plate" or "label" are the point, so only
+// the clearly-not-inspiration kinds are hidden.
+const NOISE_STEERED = /\b(logo|flag|coat of arms|screenshot|icon|signature|banknote|diagram|map)\b/i;
 const NOISE = /\b(logo|flag|coat of arms|escudo|wappen|diagram|map|mapa|karte|scan|screenshot|icon|signature|stamp|banknote|coin|chart|graph|poster|cover|page|plate|document|certificate|invoice|letter|manuscript|sheet|table|schema)\b/i;
 
 /* ------------------------------------------------------------------ *
@@ -98,6 +114,7 @@ const tierOf = views => TIERS.find(t => views <= t.max);
 const state = {
   maxViews: Number(store.get('maxViews', 30)),
   source: store.get('source', 'both'),   // 'commons' | 'archive' | 'both'
+  lens: store.get('lens', 'all'),        // a LENSES key, or 'q:<words the designer typed>'
   hideNoise: store.get('hideNoise', true),
   pool: [],                 // every file scanned this session, with its view counts
   seenIds: new Set(),
@@ -110,6 +127,7 @@ const state = {
   localViews: store.get('localViews', {}), // id -> times opened on this site, this browser
 };
 if (!TIERS.some(t => t.max === state.maxViews)) state.maxViews = 30;
+if (!(state.lens in LENSES) && !String(state.lens).startsWith('q:')) state.lens = 'all';
 if (!(state.source in SOURCES) && state.source !== 'both') state.source = 'both';
 
 const siteViews = it => state.localViews[it.id] || 0;
@@ -125,7 +143,9 @@ async function fetchCommons() {
     // "random" 50 files every time. A throwaway parameter makes each request unique
     // (the API ignores it, with a harmless warning).
     nocache: Math.random().toString(36).slice(2),
-    generator: 'random', grnnamespace: '6', grnlimit: String(BATCH_SIZE),
+    ...(lensWords().length
+      ? { generator: 'search', gsrnamespace: '6', gsrlimit: String(BATCH_SIZE), gsrsort: 'random', gsrsearch: `filetype:bitmap (${lensQuery()})` }
+      : { generator: 'random', grnnamespace: '6', grnlimit: String(BATCH_SIZE) }),
     prop: 'imageinfo|globalusage', gulimit: 'max', iiprop: 'url|size|mime|extmetadata', iiurlwidth: '900',
     iiextmetadatafilter: 'Artist|LicenseShortName|LicenseUrl|ImageDescription|DateTimeOriginal',
   });
@@ -156,6 +176,7 @@ async function fetchCommons() {
     out.push({
       id: p.pageid,
       source: 'commons',
+      lens: state.lens,
       title: p.title.replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '').replace(/_/g, ' '),
       thumb: info.thumburl,
       tw: info.thumbwidth || info.width,
@@ -179,7 +200,9 @@ async function fetchCommons() {
 async function fetchArchive() {
   const year = 2006 + Math.floor(Math.random() * (now.getUTCFullYear() - 2006 + 1));
   const cap = state.maxViews === Infinity ? 100000 : Math.max(state.maxViews, 4);
-  const q = `mediatype:image AND licenseurl:* AND downloads:[0 TO ${cap}] AND publicdate:[${year}-01-01 TO ${year}-12-31]`;
+  const steered = lensWords().length > 0;
+  const q = `mediatype:image AND licenseurl:* AND downloads:[0 TO ${cap}]` +
+    (steered ? ` AND (${lensQuery()})` : ` AND publicdate:[${year}-01-01 TO ${year}-12-31]`);
   const fields = ['identifier', 'title', 'creator', 'licenseurl', 'downloads', 'date', 'description'];
   const search = page => {
     const params = new URLSearchParams({ q, rows: String(BATCH_SIZE), page: String(page), output: 'json' });
@@ -200,6 +223,7 @@ async function fetchArchive() {
     out.push({
       id,
       source: 'archive',
+      lens: state.lens,
       title: plain(first(d.title)) || d.identifier,
       thumb: `https://archive.org/services/img/${encodeURIComponent(d.identifier)}`,
       page: `https://archive.org/details/${encodeURIComponent(d.identifier)}`,
@@ -224,6 +248,12 @@ function licenseName(url) {
   if (/publicdomain\/mark/i.test(u)) return 'Public domain';
   return u ? 'See license link' : '';
 }
+
+const lensWords = () => {
+  if (state.lens in LENSES) return LENSES[state.lens].words;
+  return String(state.lens).slice(2).split(/[\s,]+/).filter(Boolean).slice(0, 8);
+};
+const lensQuery = () => lensWords().map(w => (/\s/.test(w) ? `"${w}"` : w)).join(' OR ');
 
 // With both sources on, ask each in the same round and interleave the results, so the
 // feed mixes them instead of filling up from whichever answers first. If one is down
@@ -329,7 +359,8 @@ const banner = $('#banner');
 function matches(it) {
   if (state.source !== 'both' && it.source !== state.source) return false;
   if (totalViews(it) > state.maxViews) return false;
-  if (state.hideNoise && NOISE.test(it.title)) return false;
+  if ((it.lens || 'all') !== state.lens) return false;
+  if (state.hideNoise && (state.lens === 'all' ? NOISE : NOISE_STEERED).test(it.title)) return false;
   return true;
 }
 
@@ -396,8 +427,24 @@ function renderGrid() {
   setStatus();
 }
 
-async function dig() {
-  if (state.digging) { state.stop = true; return; }
+// Endless scroll: whenever the bottom of the feed is within reach, dig again.
+// Pressing Stop pauses it until the reader presses Dig again; a dig that finds nothing
+// waits a few seconds before the next, so an empty tier doesn't hammer the sources.
+let autoPaused = false;
+let lastFound = 0;
+let lastDigEnd = 0;
+function nearBottom() {
+  return !$('#digView').hidden && document.documentElement.scrollHeight - window.scrollY - window.innerHeight < 1500;
+}
+function maybeMore() {
+  if (state.digging || autoPaused || !nearBottom()) return;
+  if (lastFound === 0 && Date.now() - lastDigEnd < 5000) return;
+  dig();
+}
+
+async function dig(fromUser = false) {
+  if (state.digging) { state.stop = true; autoPaused = true; return; }
+  if (fromUser === true) autoPaused = false;
   state.digging = true; state.stop = false;
   showBanner('');
   setDigButtons();
@@ -452,8 +499,10 @@ async function dig() {
     showBanner(`Couldn’t reach the image source (${err.message}). Hit Dig to try again.`);
   } finally {
     state.digging = false; state.stop = false;
+    lastFound = found; lastDigEnd = Date.now();
     setDigButtons();
     setStatus();
+    setTimeout(maybeMore, found ? 0 : 5000);
     if (!grid.children.length && state.scanned > 0 && !banner.textContent) {
       statusEl.textContent += ' · nothing this obscure yet, dig deeper';
     }
@@ -886,6 +935,36 @@ for (const chip of $$('.chip[data-max]')) {
   });
 }
 
+// Design lens: preset chips plus a box for your own words. Changing it starts a fresh feed.
+function setLens(lens) {
+  if (lens === state.lens) return;
+  state.lens = lens;
+  store.set('lens', lens);
+  paintLens();
+  grid.replaceChildren();
+  window.scrollTo({ top: 0 });
+  if (state.digging) state.stop = true;
+  autoPaused = false;
+  setStatus();
+  setTimeout(() => { if (!state.digging) dig(true); else lensWait(); }, 0);
+}
+// If a dig was still winding down, retry once it has finished.
+function lensWait() {
+  const t = setInterval(() => { if (!state.digging) { clearInterval(t); dig(true); } }, 200);
+}
+function paintLens() {
+  const custom = String(state.lens).startsWith('q:');
+  $('#lensChips').replaceChildren(...Object.entries(LENSES).map(([key, l]) =>
+    h('button', { type: 'button', class: 'chip', 'aria-pressed': String(state.lens === key), onclick: () => { $('#lensInput').value = ''; setLens(key); } }, l.name)));
+  if (custom) $('#lensInput').value = String(state.lens).slice(2);
+}
+$('#lensForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const words = $('#lensInput').value.trim().toLowerCase().replace(/\s+/g, ' ');
+  setLens(words ? 'q:' + words : 'all');
+});
+paintLens();
+
 for (const chip of $$('.srcchip')) {
   chip.setAttribute('aria-pressed', String(chip.dataset.source === state.source));
   chip.addEventListener('click', () => {
@@ -905,7 +984,8 @@ noise.addEventListener('change', () => {
   renderGrid();
 });
 
-for (const b of $$('.digBtn')) b.addEventListener('click', dig);
+for (const b of $$('.digBtn')) b.addEventListener('click', () => dig(true));
+window.addEventListener('scroll', maybeMore, { passive: true });
 
 updateSavedCount();
 setDigButtons();

@@ -41,6 +41,15 @@
       <button type="button" class="primary digBtn">Dig</button>
     </div>
 
+    <div class="lenses" role="group" aria-label="Design lens">
+      <span class="chiplabel">Look for</span>
+      <div class="chips" id="lensChips"></div>
+      <form id="lensForm" class="lensform">
+        <input type="search" id="lensInput" placeholder="or type a look: brutalist concrete, hand-dyed linen&hellip;" aria-label="Type your own look" autocomplete="off">
+        <button type="submit" class="ghostbtn">Go</button>
+      </form>
+    </div>
+
     <p id="status" class="status" role="status" aria-live="polite"></p>
     <div id="banner" class="banner" role="alert" hidden></div>
     <div id="grid" class="grid"></div>
