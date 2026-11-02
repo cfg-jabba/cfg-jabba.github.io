@@ -3,24 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Discovery Report — Clipper Studio Co</title>
-<meta name="description" content="A globe of what is trending and coming up in fashion and tech, with the sources and confidence behind every pin.">
+<title>Atlas — the world, live</title>
+<meta name="description" content="A live globe of what the world's news is covering: thousands of outlets in dozens of languages, clustered into stories, with the sources and confidence behind every pin.">
 <style>
   :root {
     color-scheme: light dark;
     --bg:#fff; --fg:#1b1e22; --muted:#4a5257; --faint:#6b7480; --line:#d8dce0; --card:#f6f8fa;
     --link:#0b5fc4;
-    --fashion:#c2185b; --tech:#1565c0;
+    --world:#d9480f; --business:#2b8a3e; --tech:#1565c0; --science:#7048e8; --sport:#0c8599; --culture:#a67c00; --fashion:#c2185b;
     --ocean:#eef2f6; --land:#d3dbe3; --border:#f6f8fa; --grat:#dfe5eb; --rim:#b9c4ce; --glow:21,101,192;
   }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
     --bg:#14171a; --fg:#e6eae8; --muted:#a3adb0; --faint:#8a949c; --line:#2b3036; --card:#1b2024;
-    --link:#7fb8ff; --fashion:#ff7eb6; --tech:#6cb4ff;
+    --link:#7fb8ff; --world:#ff9a5a; --business:#5dd391; --tech:#6cb4ff; --science:#b197fc; --sport:#3bc9db; --culture:#ffd43b; --fashion:#ff7eb6;
     --ocean:#0d1114; --land:#232b32; --border:#14171a; --grat:#1a2127; --rim:#3a444d; --glow:108,180,255;
   } }
   :root[data-theme="dark"] {
     --bg:#14171a; --fg:#e6eae8; --muted:#a3adb0; --faint:#8a949c; --line:#2b3036; --card:#1b2024;
-    --link:#7fb8ff; --fashion:#ff7eb6; --tech:#6cb4ff;
+    --link:#7fb8ff; --world:#ff9a5a; --business:#5dd391; --tech:#6cb4ff; --science:#b197fc; --sport:#3bc9db; --culture:#ffd43b; --fashion:#ff7eb6;
     --ocean:#0d1114; --land:#232b32; --border:#14171a; --grat:#1a2127; --rim:#3a444d; --glow:108,180,255;
   }
   * { box-sizing: border-box; }
@@ -55,8 +55,36 @@
   .iconbtn { width: 2.2rem; height: 2.2rem; padding: 0; justify-content: center; border-radius: 50%; font-size: 1.1rem; line-height: 1; }
   .chip:hover, .iconbtn:hover { border-color: var(--faint); }
   .dot { width: .7rem; height: .7rem; border-radius: 50%; border: 2px solid currentColor; display: inline-block; flex: none; }
-  .dot.fashion { color: var(--fashion); background: var(--fashion); }
+  .dot.world { color: var(--world); background: var(--world); }
+  .dot.business { color: var(--business); background: var(--business); }
   .dot.tech { color: var(--tech); background: var(--tech); }
+  .dot.science { color: var(--science); background: var(--science); }
+  .dot.sport { color: var(--sport); background: var(--sport); }
+  .dot.culture { color: var(--culture); background: var(--culture); }
+  .dot.fashion { color: var(--fashion); background: var(--fashion); }
+  .tl { max-width: calc(100% - 5rem); }
+  .search { width: 100%; font: inherit; font-size: .92rem; padding: .4rem .8rem; margin: .2rem 0 .65rem; border: 1px solid var(--line);
+            border-radius: 999px; background: var(--card); color: var(--fg); }
+  .search::placeholder { color: var(--faint); }
+  .lang { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; padding: .02rem .4rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .tags { display: flex; flex-wrap: wrap; gap: .3rem; margin: .5rem 0 0; }
+  .tag { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: .08rem .6rem; font-size: .8rem; cursor: pointer; color: var(--muted); }
+  .tag:hover { border-color: var(--faint); color: var(--fg); }
+  .tag small { color: var(--faint); margin-left: .25rem; }
+  .brief { padding: .2rem 1.1rem 1rem; }
+  .brief h3 { margin: 1.1rem 0 .35rem; padding: 0; }
+  .brief .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: .8rem 0 .2rem; }
+  .brief .stat { border: 1px solid var(--line); border-radius: .6rem; padding: .45rem .6rem; background: var(--card); }
+  .brief .stat b { display: block; font-size: 1.15rem; line-height: 1.2; }
+  .brief .stat span { font-size: .75rem; color: var(--faint); }
+  .brief .tools { display: flex; gap: .5rem; flex-wrap: wrap; margin: .8rem 0 0; }
+  .brief .tools button { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: .3rem .85rem; cursor: pointer; font-size: .88rem; }
+  .brief .tools button:hover { border-color: var(--faint); }
+  .brief .hint { font-size: .8rem; color: var(--faint); margin: .4rem 0 0; }
+  .brief .row { padding-left: 0; padding-right: 0; }
+  .topicbar { display: grid; grid-template-columns: 5.5rem 1fr 2.2rem; gap: .5rem; align-items: center; font-size: .85rem; padding: .12rem 0; }
+  .topicbar .b { height: .5rem; border-radius: 3px; background: var(--faint); }
+  .topicbar i { font-style: normal; text-align: right; color: var(--faint); }
   .legend { display: grid; grid-template-columns: auto auto; gap: .1rem .6rem; background: color-mix(in srgb, var(--bg) 85%, transparent);
             padding: .4rem .6rem; border-radius: .6rem; border: 1px solid var(--line); }
   .legend i { display: inline-block; width: .8rem; height: .8rem; vertical-align: -1px; margin-right: .3rem; border: 2px solid var(--faint); }
@@ -123,19 +151,15 @@
 </head>
 <body>
 <header>
-  <strong>Clipper Studio Co · Discovery</strong>
+  <strong>Atlas</strong>
   <span class="status" id="status"><span class="live off" id="live" hidden></span><span id="statustext">Loading…</span></span>
-  <a class="hide-s" href="../index.html">Home</a>
 </header>
 
 <div class="app">
   <section class="stage" id="stage" aria-label="Interactive globe">
     <canvas id="globe" role="img" aria-label="Globe with pins for trending stories, upcoming events and releases. The list beside it has the same content."></canvas>
 
-    <div class="overlay tl" role="group" aria-label="Filter by topic">
-      <button class="chip" data-domain="fashion" aria-pressed="true"><span class="dot fashion"></span>Fashion</button>
-      <button class="chip" data-domain="tech" aria-pressed="true"><span class="dot tech"></span>Tech</button>
-    </div>
+    <div class="overlay tl" id="chips" role="group" aria-label="Filter by topic"></div>
     <div class="overlay tr">
       <button class="iconbtn" id="zin" aria-label="Zoom in">+</button>
       <button class="iconbtn" id="zout" aria-label="Zoom out">−</button>
@@ -156,11 +180,13 @@
 
   <aside class="panel">
     <div class="top">
-      <h1>What’s moving in fashion &amp; tech</h1>
-      <p class="lead">Trending stories, upcoming events and releases, pinned where they happen. Every pin shows its sources and how far to trust it.</p>
+      <h1>What the world is covering</h1>
+      <p class="lead">News from thousands of outlets in dozens of languages, grouped into stories and pinned where they happen. Every pin shows its sources and how far to trust it.</p>
+      <input class="search" id="q" type="search" placeholder="Search everything: a place, a person, a company, a topic" aria-label="Search stories" autocomplete="off">
       <div role="tablist" aria-label="Show">
         <button role="tab" aria-selected="true" data-tab="latest">Latest</button>
         <button role="tab" aria-selected="false" data-tab="all">Everything</button>
+        <button role="tab" aria-selected="false" data-tab="brief">Briefing</button>
         <button role="tab" aria-selected="false" data-tab="story">Trending</button>
         <button role="tab" aria-selected="false" data-tab="event">Upcoming</button>
         <button role="tab" aria-selected="false" data-tab="release">Releases</button>
@@ -170,10 +196,14 @@
     <div class="list" id="list" aria-live="polite"></div>
     <footer class="note">
       <p id="note"></p>
-      <p><b>How to read it.</b> <em>Trending</em> pins are sized by how many independent outlets cover the story.
-         <em>Confidence</em>: high = official or several matching sources; medium = one reputable source; low = a single secondary source, so verify.
-         Pins on a headline are placed from a place or company named in it, and say so.</p>
-      <p><b>How live is “live”?</b> The data file is rebuilt about hourly from the outlets’ own public feeds, and this page checks for a newer copy every five minutes while it is open. It is a fast refresh, not a real-time stream.</p>
+      <p><b>How to read it.</b> Every article is grouped with the others covering the same story. A pin’s size is its <em>signal</em>: how many
+         different headlines the story has. Outlets that run the identical wire copy count once, and the outlet count is shown beside it.
+         <em>Confidence</em>: high = three or more different headlines; medium = two; low = one, so verify. Non-English headlines are shown in their original language.
+         A pin sits where most of the coverage places the story; the card says how that was decided, and place tagging is imperfect.</p>
+      <p><b>Where it comes from.</b> The <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener noreferrer">GDELT Project</a>’s open feed of
+         worldwide news (refreshed every 15 minutes), about sixty named newsroom feeds, and the Hacker News front page. Each is read by a script on the server,
+         never by your browser.</p>
+      <p><b>How live is “live”?</b> The data file is rebuilt about hourly from the sources above, and this page checks for a newer copy every five minutes while it is open. It is a fast refresh, not a real-time stream.</p>
       <p>No cookies, no trackers. This page loads one data file and nothing else leaves your browser. To mark what is new, your browser keeps a short list of story ids you have already seen, on this device only.</p>
     </footer>
   </aside>
@@ -197,8 +227,13 @@
   const GEO_WHY = {
     venue: "Pinned at the event venue.", market: "Pinned at the market the news concerns.",
     hq: "Pinned at the company’s headquarters, the closest anchor in the headline.",
-    mentioned: "Pinned from a place named in the headline.", source: "No place found in the headline; pinned at the outlet’s home city."
+    mentioned: "Pinned from a place named in the headline.", source: "No place found in the headline; pinned at the outlet’s home city.",
+    gdelt: "Pinned where most of the coverage places the story: each article’s place tags vote, and a place in the headline counts triple."
   };
+  // Topics, in the order they are offered. Each has a colour variable of the same name.
+  const DOMAINS = [["world", "World"], ["business", "Business"], ["tech", "Tech"], ["science", "Science & health"],
+                   ["sport", "Sport"], ["culture", "Culture"], ["fashion", "Fashion"]];
+  const DOMAIN_LABEL = Object.fromEntries(DOMAINS);
 
   // ---------- tiny DOM helper (never innerHTML: feed text is untrusted) ----------
   function h(tag, attrs, ...kids) {
@@ -244,16 +279,18 @@
 
   // ---------- state ----------
   let data = null, items = [], map = null;
-  const state = { domains: { fashion: true, tech: true }, tab: "latest", selected: null, hover: null };
+  const state = { domains: Object.fromEntries(DOMAINS.map(([k]) => [k, true])), tab: "latest", selected: null, hover: null, q: "" };
 
   // Stories this visitor has not seen before. The seen-list lives in this browser only.
   const SEEN_KEY = "discovery.seen";
   const newIds = new Set();
   const seen = (() => { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || "[]")); } catch { return new Set(); } })();
-  const saveSeen = () => { try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seen].slice(-400))); } catch { /* storage may be blocked */ } };
+  const saveSeen = () => { try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seen].slice(-2500))); } catch { /* storage may be blocked */ } };
 
-  const visible = () => items.filter(i => state.domains[i.domain] &&
-    (state.tab === "all" || (state.tab === "latest" ? i.kind === "story" : i.kind === state.tab)));
+  // Everything means everything: the "all" and "brief" views apply no cap, only the filters and the search box.
+  const kindOk = i => state.tab === "all" || state.tab === "brief" || (state.tab === "latest" ? i.kind === "story" : i.kind === state.tab);
+  const queryOk = i => !state.q || state.q.split(/\s+/).every(w => i._h.includes(w));
+  const visible = () => items.filter(i => state.domains[i.domain] && kindOk(i) && queryOk(i));
 
   // ---------- globe ----------
   const canvas = $("#globe"), stage = $("#stage"), ctx = canvas.getContext("2d");
@@ -266,7 +303,7 @@
 
   function readColors() {
     const cs = getComputedStyle(document.documentElement);
-    for (const k of ["ocean", "land", "border", "grat", "rim", "glow", "fashion", "tech", "faint", "fg", "bg"]) css[k] = cs.getPropertyValue("--" + k).trim();
+    for (const k of ["ocean", "land", "border", "grat", "rim", "glow", "faint", "fg", "bg", ...DOMAINS.map(d => d[0])]) css[k] = cs.getPropertyValue("--" + k).trim();
     dirty = true;
   }
   function resize() {
@@ -416,14 +453,25 @@
   };
   if (reduceMotion) { $("#spin").textContent = "▶"; $("#spin").setAttribute("aria-pressed", "false"); $("#spin").setAttribute("aria-label", "Resume rotation"); }
   addEventListener("keydown", e => { if (e.key === "Escape") select(null); });
-  document.querySelectorAll(".chip").forEach(b => b.onclick = () => {
-    const d = b.dataset.domain; state.domains[d] = !state.domains[d]; b.setAttribute("aria-pressed", String(state.domains[d]));
-    if (state.selected && !state.domains[state.selected.domain]) select(null); refresh();
-  });
-  document.querySelectorAll("[role=tab]").forEach(b => b.onclick = () => {
-    state.tab = b.dataset.tab; document.querySelectorAll("[role=tab]").forEach(x => x.setAttribute("aria-selected", String(x === b)));
-    if (state.selected && !visible().includes(state.selected)) select(null); refresh();
-  });
+  for (const [k, label] of DOMAINS) {
+    $("#chips").append(h("button", { class: "chip", "data-domain": k, "aria-pressed": "true", onclick: e => {
+      state.domains[k] = !state.domains[k]; e.currentTarget.setAttribute("aria-pressed", String(state.domains[k]));
+      if (state.selected && !state.domains[state.selected.domain]) select(null); refresh();
+    } }, h("span", { class: "dot " + k }), label));
+  }
+  function setTab(t) {
+    state.tab = t;
+    document.querySelectorAll("[role=tab]").forEach(x => x.setAttribute("aria-selected", String(x.dataset.tab === t)));
+    if (state.selected && !visible().includes(state.selected)) select(null);
+    refresh(); $(".panel").scrollTop = 0;
+  }
+  document.querySelectorAll("[role=tab]").forEach(b => b.onclick = () => setTab(b.dataset.tab));
+
+  // Search: every word must appear somewhere in a story's title, place, topics, people, organisations or outlets.
+  const qBox = $("#q"); let qTimer = null;
+  const applyQuery = q => { state.q = q.trim().toLowerCase(); if (state.selected && !visible().includes(state.selected)) select(null); refresh(); };
+  qBox.addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => applyQuery(qBox.value), 140); });
+  function setQuery(q) { qBox.value = q; if (state.tab === "brief") state.tab = "all", document.querySelectorAll("[role=tab]").forEach(x => x.setAttribute("aria-selected", String(x.dataset.tab === "all"))); applyQuery(q); $(".panel").scrollTop = 0; }
 
   // ---------- card + list ----------
   function select(it, opts = {}) {
@@ -432,17 +480,22 @@
     document.querySelectorAll(".row").forEach(r => r.setAttribute("aria-current", String(r.dataset.id === (it && it.id))));
     if (!it) { card.hidden = true; return; }
     if (opts.fly) flyTo(it);
-    const dom = it.domain === "fashion" ? "Fashion" : "Tech";
+    const dom = DOMAIN_LABEL[it.domain] || it.domain;
     const srcs = (it.sources || []).filter(s => safeUrl(s.url));
+    const reach = it.outlets || it.signal;
+    const tags = [...(it.themes || []), ...(it.people || []), ...(it.orgs || [])];
     card.replaceChildren(...[
       h("button", { class: "x", "aria-label": "Close details", onclick: () => select(null) }, "×"),
       h("div", { class: "meta" }, h("span", { class: "dot " + it.domain }), h("span", { text: `${dom} · ${KIND_LABEL[it.kind]}` }),
-        h("span", { class: "badge " + it.confidence, title: "How far to trust this item" }, it.confidence + " confidence")),
+        h("span", { class: "badge " + it.confidence, title: "How far to trust this item" }, it.confidence + " confidence"),
+        it.lang && it.lang !== "eng" ? h("span", { class: "lang", title: "The headline is shown in its original language" }, it.lang) : null),
       h("h2", { text: it.title }),
       it.summary ? h("p", { text: it.summary }) : null,
       h("div", { class: "meta" }, h("span", { text: it.place }), h("span", { text: `${span(it)} · ${when(it)}` }),
-        it.kind === "story" ? h("span", { text: `${it.signal} outlet${it.signal === 1 ? "" : "s"}` }) : null,
+        it.kind === "story" ? h("span", { text: `${it.signal} headline${it.signal === 1 ? "" : "s"} · ${reach} outlet${reach === 1 ? "" : "s"}` }) : null,
+        it.tone != null ? h("span", { title: "Average tone of the coverage, from GDELT: below zero is negative", text: `tone ${toneWord(it.tone)} (${it.tone})` }) : null,
         it.hn ? h("span", { text: `${it.hn} pts on Hacker News` }) : null),
+      tags.length ? h("div", { class: "tags" }, tags.map(t => h("button", { class: "tag", title: "Search for this", onclick: () => setQuery(t), text: t }))) : null,
       srcs.length ? h("ul", {}, srcs.map(s => h("li", {}, h("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener noreferrer", text: s.name }),
         s.at && isFinite(Date.parse(s.at)) ? ` · ${ago(Date.parse(s.at))}` : null))) : null,
       h("div", { class: "why", text: GEO_WHY[it.geo] || "" })
@@ -455,9 +508,10 @@
     return h("button", { class: "row", "data-id": it.id, "aria-current": String(state.selected === it), onclick: () => select(it, { fly: true }) },
       h("span", { class: "dot " + it.domain, "aria-label": it.domain }),
       h("span", { class: "t", text: it.title }),
-      h("span", { class: "m" }, newIds.has(it.id) ? h("span", { class: "new" }, "New") : null, h("span", { text: it.place }),
+      h("span", { class: "m" }, newIds.has(it.id) ? h("span", { class: "new" }, "New") : null,
+        it.lang && it.lang !== "eng" ? h("span", { class: "lang" }, it.lang) : null, h("span", { text: it.place }),
         h("span", { text: it.kind === "story" ? when(it) : span(it) + " · " + when(it), "data-ts": it.kind === "story" && it.published_at ? stamp(it) : null }),
-        it.kind === "story" ? h("span", { title: `${it.signal} outlet(s)` }, h("span", { class: "bar", style: `width:${8 + 30 * it.signal / maxSignal}px` }), ` ${it.signal}`) : null,
+        it.kind === "story" ? h("span", { title: `${it.signal} different headline(s) in ${it.outlets || it.signal} outlet(s)` }, h("span", { class: "bar", style: `width:${8 + 30 * it.signal / maxSignal}px` }), ` ${it.signal}`) : null,
         it.confidence === "low" ? h("span", { class: "badge low" }, "verify") : null));
   }
 
@@ -469,6 +523,7 @@
     const events = by("event").sort((a, b) => a.start.localeCompare(b.start));
     const releases = by("release").sort((a, b) => a.start.localeCompare(b.start));
     const maxS = Math.max(1, ...stories.map(s => s.signal));
+    if (state.tab === "brief") { list.append(renderBrief(stories, maxS)); return; }
     if (state.tab === "latest") {
       const newest = stories.slice().sort((a, b) => stamp(b) - stamp(a));
       list.append(h("h3", { text: `Newest first · ${newest.length}` }), ...newest.map(i => row(i, maxS)));
@@ -478,6 +533,77 @@
       if (!arr.length) continue;
       list.append(h("h3", { text: `${label} · ${arr.length}` }), ...arr.map(i => row(i, maxS)));
     }
+  }
+
+  // ---------- analyst briefing ----------
+  const toneWord = t => t <= -5 ? "very negative" : t <= -2 ? "negative" : t < 2 ? "neutral" : t < 5 ? "positive" : "very positive";
+  const tally = (arr, pick) => {
+    const c = new Map();
+    for (const s of arr) for (const k of pick(s) || []) c.set(k, (c.get(k) || 0) + 1);
+    return [...c].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  };
+
+  // Everything below is computed from what is on screen, so the filters and the search box shape the briefing.
+  function briefing(stories) {
+    const byTone = new Map();
+    for (const s of stories) if (s.tone != null) { const t = byTone.get(s.domain) || [0, 0]; t[0] += s.tone; t[1]++; byTone.set(s.domain, t); }
+    return {
+      top: stories.slice().sort((a, b) => b.signal - a.signal || (b.outlets || 0) - (a.outlets || 0)).slice(0, 8),
+      topics: tally(stories, s => s.themes).slice(0, 12), people: tally(stories, s => s.people).slice(0, 12),
+      orgs: tally(stories, s => s.orgs).slice(0, 12), places: tally(stories, s => [s.place]).slice(0, 12),
+      domains: tally(stories, s => [s.domain]), langs: new Set(stories.map(s => s.lang || "eng")).size,
+      places_n: new Set(stories.map(s => s.place)).size,
+      mood: [...byTone].map(([d, [sum, n]]) => [d, sum / n, n]).sort((a, b) => a[1] - b[1]),
+    };
+  }
+
+  function briefingMarkdown(stories) {
+    const b = briefing(stories), st = (data && data.stats) || {};
+    const list = (title, pairs) => pairs.length ? [`## ${title}`, pairs.map(([k, n]) => `${k} (${n})`).join(", "), ""] : [];
+    return [
+      `# Atlas briefing, ${new Date(nowMs()).toISOString().slice(0, 16).replace("T", " ")} UTC`,
+      `Topics: ${DOMAINS.filter(([k]) => state.domains[k]).map(d => d[1]).join(", ") || "none"}` + (state.q ? `. Search: "${state.q}"` : ""),
+      `${stories.length} stories across ${b.places_n} places and ${b.langs} languages` +
+        (st.articles ? `, from a scan of ${st.articles.toLocaleString()} articles and ${st.outlets.toLocaleString()} outlets.` : "."), "",
+      "## Most covered",
+      ...b.top.map((s, i) => `${i + 1}. **${s.title}** (${s.place}; ${s.signal} headline${s.signal === 1 ? "" : "s"}, ${s.outlets || s.signal} outlets, ${s.confidence} confidence)` +
+        (s.sources && safeUrl(s.sources[0].url) ? ` ${s.sources[0].url}` : "")),
+      "", ...list("Topics", b.topics), ...list("People", b.people), ...list("Organisations", b.orgs), ...list("Places", b.places),
+      "Source: GDELT Project and named newsroom feeds, via Atlas. Place tagging and topics are automatic and imperfect; check the linked sources.",
+    ].join("\n");
+  }
+
+  function download(name, text, type) {
+    const a = h("a", { href: URL.createObjectURL(new Blob([text], { type })), download: name });
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  const stampName = () => new Date(nowMs()).toISOString().slice(0, 16).replace(/[-:T]/g, "");
+  function flash(btn, msg) { const old = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = old; }, 1800); }
+
+  function renderBrief(stories, maxS) {
+    const b = briefing(stories), box = h("div", { class: "brief" });
+    const tags = (title, pairs) => pairs.length ? [h("h3", { text: title }), h("div", { class: "tags" },
+      pairs.map(([k, n]) => h("button", { class: "tag", title: "Search for this", onclick: () => setQuery(k) }, k, h("small", { text: String(n) }))))] : [];
+    box.append(
+      h("div", { class: "stats" },
+        h("div", { class: "stat" }, h("b", { text: stories.length.toLocaleString() }), h("span", { text: "stories" })),
+        h("div", { class: "stat" }, h("b", { text: b.places_n.toLocaleString() }), h("span", { text: "places" })),
+        h("div", { class: "stat" }, h("b", { text: String(b.langs) }), h("span", { text: "languages" }))),
+      h("div", { class: "tools" },
+        h("button", { onclick: async e => {
+          const btn = e.currentTarget, md = briefingMarkdown(stories);
+          try { await navigator.clipboard.writeText(md); flash(btn, "Copied"); } catch { download(`atlas-briefing-${stampName()}.md`, md, "text/markdown"); flash(btn, "Saved as file"); }
+        }, text: "Copy briefing" }),
+        h("button", { onclick: () => download(`atlas-${stampName()}.json`, JSON.stringify({ generated: data.generated, stats: data.stats, items: visible().map(({ _h, ...rest }) => rest) }, null, 1), "application/json"), text: "Download data (JSON)" })),
+      h("p", { class: "hint", text: "The briefing follows your topic filters and search. Click any tag to search for it." }));
+    if (!stories.length) { box.append(h("div", { class: "empty", text: "No stories match the current filters." })); return box; }
+    box.append(h("h3", { text: "Most covered" }), ...b.top.map(i => row(i, maxS)));
+    box.append(h("h3", { text: "By topic" }), ...b.domains.map(([d, n]) => h("div", { class: "topicbar" },
+      h("span", { text: DOMAIN_LABEL[d] || d }), h("span", { class: "b", style: `width:${Math.max(2, 100 * n / b.domains[0][1])}%;background:var(--${d})` }), h("i", { text: String(n) }))));
+    if (b.mood.length) box.append(h("h3", { text: "Mood of the coverage" }), ...b.mood.map(([d, t, n]) => h("div", { class: "topicbar", title: `${n} stories; average GDELT tone ${t.toFixed(1)}` },
+      h("span", { text: DOMAIN_LABEL[d] || d }), h("span", { text: toneWord(t) }), h("i", { text: t.toFixed(1) }))));
+    box.append(...tags("Hot places", b.places), ...tags("Topics", b.topics), ...tags("People in the news", b.people), ...tags("Organisations", b.orgs));
+    return box;
   }
 
   function renderPlaces() {
@@ -501,12 +627,17 @@
   function ingest(d, initial) {
     const next = (d.items || []).filter(valid);
     const known = new Set(items.map(i => i.id));
-    let fresh = 0;
+    const added = [];
     for (const i of next) {
+      i._h = [i.title, i.summary, i.place, DOMAIN_LABEL[i.domain], i.lang, ...(i.themes || []), ...(i.people || []), ...(i.orgs || []),
+              ...(i.sources || []).map(s => s.name)].filter(Boolean).join(" ").toLowerCase();
       if (i.kind !== "story" || newIds.has(i.id)) continue;
       // First load: new = not in this browser's seen-list (and nothing is new on a first-ever visit).
-      if (initial ? seen.size && !seen.has(i.id) : !known.has(i.id)) { newIds.add(i.id); fresh++; }
+      if (initial ? seen.size && !seen.has(i.id) : !known.has(i.id)) added.push(i);
     }
+    // The count is honest; only the most-covered new stories get the pulsing outline, so the globe stays readable.
+    for (const i of added.sort((a, b) => b.signal - a.signal).slice(0, 40)) newIds.add(i.id);
+    const fresh = added.length;
     data = d; items = next;
     if (state.selected) state.selected = items.find(i => i.id === state.selected.id) || null;
     for (const i of items) seen.add(i.id);
@@ -519,8 +650,10 @@
     const gen = Date.parse(data.generated);
     $("#live").hidden = data.mode !== "live";
     $("#live").classList.toggle("off", pollFailed);
-    $("#statustext").textContent = `${data.mode === "live" ? "Live feeds" : "Snapshot"} · updated ${isNaN(gen) ? "at an unknown time" : ago(gen)} · ${items.length} items` +
-      statusExtra + (pollFailed ? " · couldn’t check for updates" : "");
+    const s = data.stats || {};
+    $("#statustext").textContent = `${data.mode === "live" ? "Live" : "Snapshot"} · updated ${isNaN(gen) ? "at an unknown time" : ago(gen)}` +
+      (s.articles ? ` · ${s.articles.toLocaleString()} articles, ${s.outlets.toLocaleString()} outlets, ${s.languages} languages` : "") +
+      ` · ${items.length} items` + statusExtra + (pollFailed ? " · couldn’t check for updates" : "");
   }
 
   function tick() {
@@ -565,6 +698,8 @@
       ]);
       map = { land: feature(topo, topo.objects.land), borders: mesh(topo, topo.objects.countries, (a, b) => a !== b) };
       ingest(d, true);
+      if (qs.get("q")) { qBox.value = qs.get("q"); state.q = qBox.value.trim().toLowerCase(); }
+      if (qs.get("tab") && document.querySelector(`[role=tab][data-tab="${CSS.escape(qs.get("tab"))}"]`)) setTab(qs.get("tab"));
       lastCheck = Date.now();
       setStatus();
       refresh();
