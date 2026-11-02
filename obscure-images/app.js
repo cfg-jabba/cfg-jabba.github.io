@@ -5,6 +5,13 @@
  * Config
  * ------------------------------------------------------------------ */
 const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
+// Internet Archive's search returns each item's all-time download count in the same call,
+// so unlike Commons it needs no per-file lookup (and no rationing).
+const ARCHIVE_API = 'https://archive.org/advancedsearch.php';
+const SOURCES = {
+  commons: 'Wikimedia Commons',
+  archive: 'Internet Archive',
+};
 // Wikimedia "media requests" per file: human traffic only, monthly buckets.
 const STATS_API = 'https://wikimedia.org/api/rest_v1/metrics/mediarequests/per-file/all-referers/user';
 const STATS_START = '20150101'; // earliest month Wikimedia has data for
@@ -90,6 +97,7 @@ const tierOf = views => TIERS.find(t => views <= t.max);
  * ------------------------------------------------------------------ */
 const state = {
   maxViews: Number(store.get('maxViews', 30)),
+  source: store.get('source', 'both'),   // 'commons' | 'archive' | 'both'
   hideNoise: store.get('hideNoise', true),
   pool: [],                 // every file scanned this session, with its view counts
   seenIds: new Set(),
@@ -101,7 +109,8 @@ const state = {
   saved: store.get('saved', {}),       // id -> item snapshot (+ note)
   localViews: store.get('localViews', {}), // id -> times opened on this site, this browser
 };
-if (!Number.isFinite(state.maxViews) && state.maxViews !== Infinity) state.maxViews = 30;
+if (!TIERS.some(t => t.max === state.maxViews)) state.maxViews = 30;
+if (!(state.source in SOURCES) && state.source !== 'both') state.source = 'both';
 
 const siteViews = it => state.localViews[it.id] || 0;
 const totalViews = it => it.commons + siteViews(it);
@@ -109,7 +118,7 @@ const totalViews = it => it.commons + siteViews(it);
 /* ------------------------------------------------------------------ *
  * Data: Commons + Wikimedia view counts
  * ------------------------------------------------------------------ */
-async function fetchCandidates() {
+async function fetchCommons() {
   const params = new URLSearchParams({
     action: 'query', format: 'json', origin: '*',
     // Commons caches identical requests for an hour, which would hand back the same
@@ -146,6 +155,7 @@ async function fetchCandidates() {
 
     out.push({
       id: p.pageid,
+      source: 'commons',
       title: p.title.replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '').replace(/_/g, ' '),
       thumb: info.thumburl,
       tw: info.thumbwidth || info.width,
@@ -161,6 +171,75 @@ async function fetchCandidates() {
     });
   }
   return out;
+}
+
+// Internet Archive: ask for licensed images at or under the chosen download count, from a
+// random upload year and a random page of the results so every Dig differs. The count comes
+// back with each item, so these arrive already rated (`views` is set; see dig()).
+async function fetchArchive() {
+  const year = 2006 + Math.floor(Math.random() * (now.getUTCFullYear() - 2006 + 1));
+  const cap = state.maxViews === Infinity ? 100000 : Math.max(state.maxViews, 4);
+  const q = `mediatype:image AND licenseurl:* AND downloads:[0 TO ${cap}] AND publicdate:[${year}-01-01 TO ${year}-12-31]`;
+  const fields = ['identifier', 'title', 'creator', 'licenseurl', 'downloads', 'date', 'description'];
+  const search = page => {
+    const params = new URLSearchParams({ q, rows: String(BATCH_SIZE), page: String(page), output: 'json' });
+    fields.forEach(f => params.append('fl[]', f));
+    return fetch(`${ARCHIVE_API}?${params}`, { cache: 'no-store' }).then(r => {
+      if (!r.ok) throw new Error(`Internet Archive responded ${r.status}`);
+      return r.json();
+    });
+  };
+  let json = await search(1 + Math.floor(Math.random() * 10));
+  if (!json.response.docs.length) json = await search(1);   // that year has fewer pages: fall back to the first
+
+  const first = v => (Array.isArray(v) ? v[0] : v);
+  const out = [];
+  for (const d of json.response.docs) {
+    const id = 'ia:' + d.identifier;
+    if (state.seenIds.has(id)) continue;
+    out.push({
+      id,
+      source: 'archive',
+      title: plain(first(d.title)) || d.identifier,
+      thumb: `https://archive.org/services/img/${encodeURIComponent(d.identifier)}`,
+      page: `https://archive.org/details/${encodeURIComponent(d.identifier)}`,
+      original: `https://archive.org/details/${encodeURIComponent(d.identifier)}`,
+      artist: plain(Array.isArray(d.creator) ? d.creator.join(', ') : d.creator),
+      license: licenseName(d.licenseurl),
+      licenseUrl: first(d.licenseurl) || '',
+      desc: plain(Array.isArray(d.description) ? d.description[0] : d.description),
+      date: (first(d.date) || '').slice(0, 10),
+      views: Number(d.downloads) || 0,
+    });
+  }
+  return out;
+}
+
+// "https://creativecommons.org/licenses/by-sa/4.0/" -> "CC BY-SA 4.0"
+function licenseName(url) {
+  const u = String(Array.isArray(url) ? url[0] : url || '');
+  let m = u.match(/creativecommons\.org\/licenses\/([a-z-]+)\/([\d.]+)/i);
+  if (m) return `CC ${m[1].toUpperCase()} ${m[2]}`;
+  if (/publicdomain\/zero/i.test(u)) return 'CC0';
+  if (/publicdomain\/mark/i.test(u)) return 'Public domain';
+  return u ? 'See license link' : '';
+}
+
+// With both sources on, ask each in the same round and interleave the results, so the
+// feed mixes them instead of filling up from whichever answers first. If one is down
+// the other still delivers.
+async function fetchCandidates() {
+  if (state.source === 'commons') return fetchCommons();
+  if (state.source === 'archive') return fetchArchive();
+  const settled = await Promise.allSettled([fetchCommons(), fetchArchive()]);
+  if (settled.every(r => r.status === 'rejected')) throw settled[0].reason;
+  const [a, b] = settled.map(r => (r.status === 'fulfilled' ? r.value : []));
+  const mixed = [];
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if (a[i]) mixed.push(a[i]);
+    if (b[i]) mixed.push(b[i]);
+  }
+  return mixed;
 }
 
 const now = new Date();
@@ -248,29 +327,36 @@ const statusEl = $('#status');
 const banner = $('#banner');
 
 function matches(it) {
+  if (state.source !== 'both' && it.source !== state.source) return false;
   if (totalViews(it) > state.maxViews) return false;
   if (state.hideNoise && NOISE.test(it.title)) return false;
   return true;
 }
 
+const isUpload = it => it.source === 'upload';
+const unit = it => (it.source === 'archive' ? 'download' : 'view');
+
 function viewsLabel(it) {
+  if (isUpload(it)) return 'Your own find';
   const n = totalViews(it);
-  return n === 0 ? 'No recorded views' : `${fmt(n)} view${n === 1 ? '' : 's'}`;
+  return n === 0 ? `No recorded ${unit(it)}s` : `${fmt(n)} ${unit(it)}${n === 1 ? '' : 's'}`;
 }
 
 function makeCard(it) {
   const views = totalViews(it);
   const tier = tierOf(views);
-  const img = h('img', { src: it.thumb, alt: it.title, width: it.tw, height: it.th, loading: 'lazy' });
+  const img = h('img', { src: thumbOf(it), alt: it.title, width: it.tw, height: it.th, loading: 'lazy' });
   const card = h('button', {
     type: 'button',
     class: 'card' + (state.saved[it.id] ? ' is-saved' : ''),
     'data-id': it.id,
-    'aria-label': `${it.title}. ${tier.name}, obscurity ${score(views)}. ${viewsLabel(it)}.`,
+    'aria-label': isUpload(it) ? `${it.title}. Your own find.` : `${it.title}. ${tier.name}, obscurity ${score(views)}. ${viewsLabel(it)}.`,
     onclick: () => openDetail(it),
   },
     img,
-    h('span', { class: 'badge tier-' + tier.key }, h('b', { text: String(score(views)) }), tier.name),
+    isUpload(it)
+      ? h('span', { class: 'badge tier-yours' }, 'Yours')
+      : h('span', { class: 'badge tier-' + tier.key }, h('b', { text: String(score(views)) }), tier.name),
     h('span', { class: 'meta' },
       h('span', { class: 'title', text: it.title }),
       h('span', { class: 'views', text: viewsLabel(it) })),
@@ -329,12 +415,20 @@ async function dig() {
       const scannedBefore = state.scanned;
       await mapLimit(candidates, STATS_CONCURRENCY, async file => {
         if (state.stop) return;
-        const r = await fetchViews(file);
-        if (r.status === 'error') { errors++; return; }
-        if (r.status === 'data') state.statsData++;
-        file.commons = r.total;
-        file.last12 = r.last12;
-        file.statsStatus = r.status;
+        if (file.views != null) {
+          // Already rated: the source handed us the count with the item.
+          file.commons = file.views;
+          file.last12 = null;
+          file.statsStatus = 'data';
+          state.statsData++;
+        } else {
+          const r = await fetchViews(file);
+          if (r.status === 'error') { errors++; return; }
+          if (r.status === 'data') state.statsData++;
+          file.commons = r.total;
+          file.last12 = r.last12;
+          file.statsStatus = r.status;
+        }
         state.scanned++;
         state.pool.push(file);
         if (matches(file)) { grid.append(makeCard(file)); found++; }
@@ -343,6 +437,7 @@ async function dig() {
 
       // Every lookup failed outright: stop instead of hammering a service that isn't answering.
       if (candidates.length && state.scanned === scannedBefore) break;
+      if (state.stop) break;
 
       // Tripwire: lookups succeeded but not one carried any data, so "0 views" can't be trusted.
       if (state.scanned >= 15 && state.statsData === 0) {
@@ -354,7 +449,7 @@ async function dig() {
       showBanner('Couldn’t reach Wikimedia just now. Check your connection and hit Dig again.');
     }
   } catch (err) {
-    showBanner(`Couldn’t reach Wikimedia (${err.message}). Hit Dig to try again.`);
+    showBanner(`Couldn’t reach the image source (${err.message}). Hit Dig to try again.`);
   } finally {
     state.digging = false; state.stop = false;
     setDigButtons();
@@ -366,6 +461,130 @@ async function dig() {
 }
 
 /* ------------------------------------------------------------------ *
+ * Uploaded finds: the image file lives in this browser's IndexedDB (localStorage is too
+ * small for pictures); the saved record only holds the text.
+ * ------------------------------------------------------------------ */
+const uploadUrls = {};   // id -> object URL for the stored picture
+function thumbOf(it) { return isUpload(it) ? (uploadUrls[it.id] || '') : it.thumb; }
+
+const idb = {
+  _db: null,
+  open() {
+    if (!this._db) {
+      this._db = new Promise((resolve, reject) => {
+        if (!window.indexedDB) return reject(new Error('no IndexedDB'));
+        const req = indexedDB.open('obscure-images', 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('files');
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    return this._db;
+  },
+  async run(mode, fn) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('files', mode);
+      const req = fn(tx.objectStore('files'));
+      tx.oncomplete = () => resolve(req && req.result);
+      tx.onerror = tx.onabort = () => reject(tx.error);
+    });
+  },
+  put: (key, blob) => idb.run('readwrite', s => s.put(blob, key)),
+  get: key => idb.run('readonly', s => s.get(key)),
+  del: key => idb.run('readwrite', s => s.delete(key)),
+};
+
+async function restoreUploads() {
+  const mine = Object.values(state.saved).filter(isUpload);
+  for (const it of mine) {
+    try {
+      const blob = await idb.get(it.id);
+      if (blob) uploadUrls[it.id] = URL.createObjectURL(blob);
+    } catch { /* storage unavailable: the card will show without a picture */ }
+  }
+  if (mine.length) renderSaved();
+}
+
+/* ------------------------------------------------------------------ *
+ * Colour and mood: read from a tiny copy of the picture, so Saved can be searched by
+ * "blue" or "dark". Only works where the image host allows it (Commons and uploads do;
+ * Internet Archive thumbnails don't, so those stay untagged).
+ * ------------------------------------------------------------------ */
+const HUES = [
+  ['red', 345, 15], ['orange', 15, 45], ['yellow', 45, 70], ['green', 70, 165],
+  ['teal', 165, 200], ['blue', 200, 255], ['purple', 255, 290], ['pink', 290, 345],
+];
+const hueName = deg => (HUES.find(([, a, b]) => (a < b ? deg >= a && deg < b : deg >= a || deg < b)) || HUES[0])[0];
+
+function analyseColor(url) {
+  return new Promise(resolve => {
+    if (!url) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onerror = () => resolve(null);
+    img.onload = () => {
+      try {
+        const N = 24;
+        const c = document.createElement('canvas');
+        c.width = c.height = N;
+        const g = c.getContext('2d', { willReadFrequently: true });
+        g.drawImage(img, 0, 0, N, N);
+        const px = g.getImageData(0, 0, N, N).data;
+        let L = 0, S = 0, n = 0;
+        const buckets = {};
+        for (let i = 0; i < px.length; i += 4) {
+          const r = px[i] / 255, gg = px[i + 1] / 255, b = px[i + 2] / 255;
+          const max = Math.max(r, gg, b), min = Math.min(r, gg, b), d = max - min;
+          const l = (max + min) / 2;
+          const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+          L += l; S += s; n++;
+          if (s < 0.25 || max < 0.2) continue;   // too grey or dark to count as a colour
+          let hue = max === r ? ((gg - b) / d) % 6 : max === gg ? (b - r) / d + 2 : (r - gg) / d + 4;
+          hue = (hue * 60 + 360) % 360;
+          const name = hueName(hue);
+          const k = buckets[name] || (buckets[name] = { w: 0, r: 0, g: 0, b: 0, v: 0 });
+          const w = s * max;
+          k.w += w; k.r += px[i] * w; k.g += px[i + 1] * w; k.b += px[i + 2] * w; k.v += max;
+          k.n = (k.n || 0) + 1;
+        }
+        L /= n; S /= n;
+        let name, hex = '#808080';
+        const top = Object.entries(buckets).sort((a, b) => b[1].w - a[1].w)[0];
+        if (S < 0.12 || !top || top[1].n < n * 0.08) {
+          name = L < 0.25 ? 'black' : L > 0.75 ? 'white' : 'grey';
+        } else {
+          name = top[0];
+          const k = top[1];
+          if ((name === 'orange' || name === 'red' || name === 'yellow') && k.v / k.n < 0.6) name = 'brown';
+          hex = '#' + [k.r, k.g, k.b].map(v => Math.round(v / k.w).toString(16).padStart(2, '0')).join('');
+        }
+        const mood = L < 0.3 ? 'dark' : L > 0.68 ? 'bright' : S > 0.5 ? 'vivid' : S < 0.22 ? 'muted' : 'balanced';
+        resolve({ name, mood, hex });
+      } catch { resolve(null); }   // tainted canvas etc.
+    };
+    img.src = url;
+  });
+}
+
+let colouring = false;
+async function colourSaved() {
+  if (colouring) return;
+  colouring = true;
+  try {
+    for (const it of Object.values(state.saved)) {
+      if (it.color !== undefined || it.source === 'archive') continue;
+      const color = await analyseColor(thumbOf(it));
+      const live = state.saved[it.id];
+      if (!live) continue;
+      live.color = color || null;   // null = tried, can't be read; don't retry every time
+      store.set('saved', state.saved);
+    }
+  } finally { colouring = false; }
+  if (!$('#savedView').hidden) renderSaved(false);
+}
+
+/* ------------------------------------------------------------------ *
  * Detail dialog
  * ------------------------------------------------------------------ */
 const dialog = $('#detail');
@@ -373,48 +592,71 @@ dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close();
 dialog.addEventListener('close', () => { refreshCards(); renderSaved(); });
 
 function openDetail(it) {
-  state.localViews[it.id] = siteViews(it) + 1;
-  store.set('localViews', state.localViews);
+  if (!isUpload(it)) {
+    state.localViews[it.id] = siteViews(it) + 1;
+    store.set('localViews', state.localViews);
+  }
   paintDetail(it);
   if (!dialog.open) dialog.showModal();
 }
 
+const splitTags = s => [...new Set(String(s).split(/[,#]/).map(t => t.trim().toLowerCase()).filter(Boolean))];
+
 function paintDetail(it) {
   const views = totalViews(it);
   const tier = tierOf(views);
-  const isSaved = Boolean(state.saved[it.id]);
+  const saved = state.saved[it.id];
+  const isSaved = Boolean(saved);
+  const own = isUpload(it);
   const noteBox = h('textarea', { id: 'noteBox', placeholder: 'Why this one? Brief, mood, product idea…' });
-  noteBox.value = (state.saved[it.id] && state.saved[it.id].note) || '';
+  noteBox.value = (saved && saved.note) || '';
+  const boardBox = h('input', { id: 'boardBox', type: 'text', list: 'boardList', maxlength: '40', placeholder: 'e.g. Spring campaign' });
+  boardBox.value = (saved && saved.board) || '';
+  const tagsBox = h('input', { id: 'tagsBox', type: 'text', maxlength: '120', placeholder: 'rust, quiet, symmetry' });
+  tagsBox.value = ((saved && saved.tags) || []).join(', ');
+  const boardList = h('datalist', { id: 'boardList' }, boardNames().map(b => h('option', { value: b })));
+
+  const unitName = it.source === 'archive' ? 'Downloads on the Internet Archive (all time)' : 'Views on Wikimedia since 2015';
+  const stats = own ? null : h('dl', { class: 'stats' },
+    h('dt', { text: unitName }), h('dd', { text: fmt(it.commons) }),
+    it.last12 != null ? [h('dt', { text: 'Of those, last 12 months' }), h('dd', { text: fmt(it.last12) })] : null,
+    h('dt', { text: 'Opened on this site (this browser)' }), h('dd', { text: fmt(siteViews(it)) }),
+    h('dt', { text: 'Counted total' }), h('dd', { text: fmt(views) }));
+  const statNote = it.source === 'archive'
+    ? 'Downloads counted by the Internet Archive. It can’t see views elsewhere on the internet, so treat it as a floor.'
+    : 'People-only traffic served by Wikimedia. It can’t see views elsewhere on the internet, so treat it as a floor.';
 
   const sheet = h('div', { class: 'sheet' },
-    h('div', { class: 'pic' }, h('img', { src: it.thumb, alt: it.title })),
+    h('div', { class: 'pic' }, h('img', { src: thumbOf(it), alt: it.title })),
     h('div', { class: 'info' },
       h('button', { type: 'button', class: 'close', 'aria-label': 'Close', text: '×', onclick: () => dialog.close() }),
       h('h2', { text: it.title }),
       h('p', { class: 'byline', text: [it.artist, it.date].filter(Boolean).join(' · ') || 'Author not listed' }),
-      h('div', { class: 'scorebox' },
-        h('span', { class: 'num', text: String(score(views)) }),
-        h('span', { class: 'tier', text: `${tier.name} · obscurity` })),
-      h('div', { class: 'meter', role: 'img', 'aria-label': `Obscurity ${score(views)} out of 100` },
-        h('i', { style: `width:${score(views)}%` })),
-      h('dl', { class: 'stats' },
-        h('dt', { text: 'Views on Wikimedia since 2015' }), h('dd', { text: fmt(it.commons) }),
-        h('dt', { text: 'Of those, last 12 months' }), h('dd', { text: fmt(it.last12) }),
-        h('dt', { text: 'Opened on this site (this browser)' }), h('dd', { text: fmt(siteViews(it)) }),
-        h('dt', { text: 'Counted total' }), h('dd', { text: fmt(views) })),
-      h('p', { class: 'note', text: 'People-only traffic served by Wikimedia. It can’t see views elsewhere on the internet, so treat it as a floor.' }),
+      own ? h('p', { class: 'note', text: 'Your own find. It stays in this browser and isn’t rated.' }) : [
+        h('div', { class: 'scorebox' },
+          h('span', { class: 'num', text: String(score(views)) }),
+          h('span', { class: 'tier', text: `${tier.name} · obscurity` })),
+        h('div', { class: 'meter', role: 'img', 'aria-label': `Obscurity ${score(views)} out of 100` },
+          h('i', { style: `width:${score(views)}%` })),
+        stats,
+        h('p', { class: 'note', text: statNote }),
+      ],
       h('p', { class: 'license' },
         'License: ',
-        it.licenseUrl ? h('a', { href: it.licenseUrl, target: '_blank', rel: 'noopener noreferrer', text: it.license || 'see file page' })
-                      : (it.license || 'see file page'),
-        '. Check it, and credit the author, before using this in commercial work.'),
+        it.licenseUrl ? h('a', { href: it.licenseUrl, target: '_blank', rel: 'noopener noreferrer', text: it.license || 'see source page' })
+                      : (it.license || (own ? 'not entered' : 'see source page')),
+        own ? '.' : '. Check it, and credit the author, before using this in commercial work.'),
       it.desc ? h('p', { class: 'desc', text: it.desc.length > 280 ? it.desc.slice(0, 280) + '…' : it.desc }) : null,
       h('label', { for: 'noteBox', text: 'Your note' }),
       noteBox,
+      h('div', { class: 'two' },
+        h('div', {}, h('label', { for: 'boardBox', text: 'Board' }), boardBox, boardList),
+        h('div', {}, h('label', { for: 'tagsBox', text: 'Tags (comma separated)' }), tagsBox)),
       h('div', { class: 'actions' },
-        h('button', { type: 'button', class: 'primary', text: isSaved ? 'Update' : 'Save', onclick: () => saveItem(it, noteBox.value) }),
+        h('button', { type: 'button', class: 'primary', text: isSaved ? 'Update' : 'Save',
+          onclick: () => saveItem(it, { note: noteBox.value, board: boardBox.value, tags: tagsBox.value }) }),
         isSaved ? h('button', { type: 'button', class: 'ghostbtn', text: 'Remove', onclick: () => removeItem(it) }) : null,
-        h('a', { class: 'ghostbtn', href: it.page, target: '_blank', rel: 'noopener noreferrer', text: 'Source page ↗' }),
+        it.page ? h('a', { class: 'ghostbtn', href: it.page, target: '_blank', rel: 'noopener noreferrer', text: 'Source page ↗' }) : null,
       ),
     ),
   );
@@ -422,18 +664,32 @@ function paintDetail(it) {
 }
 
 /* ------------------------------------------------------------------ *
- * Saved
+ * Saved: boards, tags, colour, search
  * ------------------------------------------------------------------ */
-function saveItem(it, note) {
-  state.saved[it.id] = { ...it, note: note.trim(), savedAt: state.saved[it.id]?.savedAt || Date.now() };
+const savedFilter = { q: '', board: '', tag: '', color: '', mood: '' };
+
+function saveItem(it, { note, board, tags }) {
+  const prev = state.saved[it.id];
+  state.saved[it.id] = {
+    ...it, ...(prev && prev.color !== undefined ? { color: prev.color } : {}),
+    note: note.trim(), board: board.trim(), tags: splitTags(tags),
+    savedAt: prev?.savedAt || Date.now(),
+  };
   store.set('saved', state.saved);
   paintDetail(it);
   updateSavedCount();
+  colourSaved();
 }
 
-function removeItem(it) {
+async function removeItem(it) {
   delete state.saved[it.id];
   store.set('saved', state.saved);
+  if (isUpload(it)) {
+    try { await idb.del(it.id); } catch { /* nothing to clean up */ }
+    if (uploadUrls[it.id]) { URL.revokeObjectURL(uploadUrls[it.id]); delete uploadUrls[it.id]; }
+    if (dialog.open) dialog.close();
+    return;
+  }
   paintDetail(it);
   updateSavedCount();
 }
@@ -446,13 +702,63 @@ function savedList() {
   return Object.values(state.saved).sort((a, b) => b.savedAt - a.savedAt);
 }
 
-function renderSaved() {
-  const list = savedList();
-  $('#savedGrid').replaceChildren(...list.map(makeCard));
-  $('#savedEmpty').hidden = list.length > 0;
-  $('#savedStatus').textContent = list.length ? `${list.length} saved` : '';
-  updateSavedCount();
+function boardNames() {
+  return [...new Set(savedList().map(i => i.board).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
+
+function savedMatches(it) {
+  const f = savedFilter;
+  if (f.board && it.board !== f.board) return false;
+  if (f.tag && !(it.tags || []).includes(f.tag)) return false;
+  if (f.color && !(it.color && it.color.name === f.color)) return false;
+  if (f.mood && !(it.color && it.color.mood === f.mood)) return false;
+  if (f.q) {
+    const hay = [it.title, it.note, it.board, it.artist, ...(it.tags || [])].join(' ').toLowerCase();
+    if (!f.q.toLowerCase().split(/\s+/).every(w => hay.includes(w))) return false;
+  }
+  return true;
+}
+
+function filterChips(host, label, key, counts, swatches) {
+  host.replaceChildren();
+  host.hidden = counts.size === 0;
+  if (!counts.size) return;
+  host.append(h('span', { class: 'chiplabel', text: label }));
+  for (const [value, count] of counts) {
+    const on = savedFilter[key] === value;
+    host.append(h('button', {
+      type: 'button', class: 'chip small', 'aria-pressed': String(on),
+      onclick: () => { savedFilter[key] = on ? '' : value; renderSaved(false); },
+    }, swatches && swatches[value] ? h('i', { class: 'swatch', style: `background:${swatches[value]}` }) : null,
+      value, h('small', { text: String(count) })));
+  }
+}
+
+function renderSaved(refreshChips = true) {
+  const all = savedList();
+  const list = all.filter(savedMatches);
+  $('#savedGrid').replaceChildren(...list.map(makeCard));
+  $('#savedEmpty').hidden = all.length > 0;
+  $('#savedTools').hidden = all.length === 0;
+  $('#savedStatus').textContent = !all.length ? '' : list.length === all.length
+    ? `${all.length} saved` : `${list.length} of ${all.length} saved`;
+
+  const tally = pick => {
+    const m = new Map();
+    for (const it of all) for (const v of [].concat(pick(it) || [])) if (v) m.set(v, (m.get(v) || 0) + 1);
+    return new Map([...m].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(b[0])));
+  };
+  const swatches = {};
+  for (const it of all) if (it.color && !swatches[it.color.name]) swatches[it.color.name] = it.color.hex;
+  filterChips($('#boardChips'), 'Boards', 'board', tally(i => i.board));
+  filterChips($('#tagChips'), 'Tags', 'tag', tally(i => i.tags));
+  filterChips($('#colorChips'), 'Colour', 'color', tally(i => i.color && i.color.name), swatches);
+  filterChips($('#moodChips'), 'Mood', 'mood', tally(i => i.color && i.color.mood));
+  updateSavedCount();
+  if (refreshChips) colourSaved();
+}
+
+$('#savedSearch').addEventListener('input', e => { savedFilter.q = e.target.value.trim(); renderSaved(false); });
 
 function refreshCards() {
   // Opening an image changes its count and saved state; refresh the badges in place.
@@ -463,32 +769,98 @@ function refreshCards() {
 }
 
 function creditsText() {
-  return savedList().map(it => [
+  const items = savedList().filter(savedMatches);
+  return items.map(it => [
     it.title,
     `By: ${it.artist || 'unknown'}`,
-    `License: ${it.license || 'see file page'}${it.licenseUrl ? ' (' + it.licenseUrl + ')' : ''}`,
-    `Source: ${it.page}`,
-    `Views on Wikimedia since 2015: ${fmt(it.commons)} · obscurity ${score(it.commons + siteViews(it))}`,
+    `License: ${it.license || 'see source page'}${it.licenseUrl ? ' (' + it.licenseUrl + ')' : ''}`,
+    isUpload(it) ? 'Source: own find, uploaded in this browser' : `Source: ${it.page}`,
+    isUpload(it) ? null
+      : `${it.source === 'archive' ? 'Downloads on the Internet Archive' : 'Views on Wikimedia since 2015'}: ${fmt(it.commons)} · obscurity ${score(it.commons + siteViews(it))}`,
+    it.board ? `Board: ${it.board}` : null,
+    it.tags && it.tags.length ? `Tags: ${it.tags.join(', ')}` : null,
     it.note ? `Note: ${it.note}` : null,
   ].filter(Boolean).join('\n')).join('\n\n');
 }
 
 $('#copyCredits').addEventListener('click', async () => {
-  if (!savedList().length) { $('#savedStatus').textContent = 'Nothing to copy yet.'; return; }
+  if (!savedList().filter(savedMatches).length) { $('#savedStatus').textContent = 'Nothing to copy yet.'; return; }
   try {
     await navigator.clipboard.writeText(creditsText());
-    $('#savedStatus').textContent = 'Credits copied.';
+    $('#savedStatus').textContent = 'Credits copied (what you’re filtering to).';
   } catch {
     $('#savedStatus').textContent = 'Couldn’t access the clipboard. Use Download JSON instead.';
   }
 });
 
 $('#downloadJson').addEventListener('click', () => {
-  if (!savedList().length) { $('#savedStatus').textContent = 'Nothing to download yet.'; return; }
-  const blob = new Blob([JSON.stringify(savedList(), null, 2)], { type: 'application/json' });
+  const items = savedList().filter(savedMatches);
+  if (!items.length) { $('#savedStatus').textContent = 'Nothing to download yet.'; return; }
+  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
   const a = h('a', { href: URL.createObjectURL(blob), download: 'obscure-images-saved.json' });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+/* ------------------------------------------------------------------ *
+ * Add your own find
+ * ------------------------------------------------------------------ */
+const addDlg = $('#addDlg');
+const addForm = $('#addForm');
+addDlg.addEventListener('click', e => { if (e.target === addDlg) addDlg.close(); });
+$('#addFind').addEventListener('click', () => {
+  addForm.reset();
+  $('#addMsg').textContent = '';
+  $('#addBoards').replaceChildren(...boardNames().map(b => h('option', { value: b })));
+  addDlg.showModal();
+});
+$('#addCancel').addEventListener('click', () => addDlg.close());
+
+// Shrink to 1400 px on the long side so a phone photo doesn't eat the browser's storage.
+function shrink(file, max = 1400) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That file isn’t an image the browser can read.')); };
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * k), hh = Math.round(img.naturalHeight * k);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = hh;
+      c.getContext('2d').drawImage(img, 0, 0, w, hh);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? resolve({ blob: b, w, h: hh }) : reject(new Error('Couldn’t process that image.')), 'image/jpeg', 0.86);
+    };
+    img.src = url;
+  });
+}
+
+addForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = $('#addMsg');
+  const fd = new FormData(addForm);
+  const file = fd.get('file');
+  if (!file || !file.size) { msg.textContent = 'Choose an image first.'; return; }
+  msg.textContent = 'Saving…';
+  try {
+    const { blob, w, h: hh } = await shrink(file);
+    const id = 'up:' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    await idb.put(id, blob);
+    uploadUrls[id] = URL.createObjectURL(blob);
+    const title = String(fd.get('title') || '').trim() || file.name.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ');
+    state.saved[id] = {
+      id, source: 'upload', title, tw: w, th: hh, thumb: '', page: '', commons: 0, last12: null,
+      artist: String(fd.get('artist') || '').trim(), license: String(fd.get('license') || '').trim(),
+      licenseUrl: '', desc: '', date: '',
+      note: String(fd.get('note') || '').trim(), board: String(fd.get('board') || '').trim(),
+      tags: splitTags(fd.get('tags') || ''), savedAt: Date.now(),
+    };
+    store.set('saved', state.saved);
+    addDlg.close();
+    showView('saved');
+  } catch (err) {
+    msg.textContent = err && err.message ? err.message : 'Couldn’t save that image in this browser.';
+  }
 });
 
 /* ------------------------------------------------------------------ *
@@ -503,12 +875,23 @@ function showView(name) {
 }
 for (const b of $$('.navbtn')) b.addEventListener('click', () => showView(b.dataset.view));
 
-for (const chip of $$('.chip')) {
+for (const chip of $$('.chip[data-max]')) {
   chip.setAttribute('aria-pressed', String(Number(chip.dataset.max) === state.maxViews));
   chip.addEventListener('click', () => {
     state.maxViews = Number(chip.dataset.max);
     store.set('maxViews', state.maxViews === Infinity ? 'Infinity' : state.maxViews);
-    for (const c of $$('.chip')) c.setAttribute('aria-pressed', String(c === chip));
+    for (const c of $$('.chip[data-max]')) c.setAttribute('aria-pressed', String(c === chip));
+    renderGrid();
+    if (grid.children.length < TARGET_MATCHES && !state.digging) dig();
+  });
+}
+
+for (const chip of $$('.srcchip')) {
+  chip.setAttribute('aria-pressed', String(chip.dataset.source === state.source));
+  chip.addEventListener('click', () => {
+    state.source = chip.dataset.source;
+    store.set('source', state.source);
+    for (const c of $$('.srcchip')) c.setAttribute('aria-pressed', String(c === chip));
     renderGrid();
     if (grid.children.length < TARGET_MATCHES && !state.digging) dig();
   });
@@ -526,5 +909,6 @@ for (const b of $$('.digBtn')) b.addEventListener('click', dig);
 
 updateSavedCount();
 setDigButtons();
+restoreUploads();
 dig();
 })();

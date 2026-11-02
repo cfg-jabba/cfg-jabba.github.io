@@ -191,6 +191,31 @@ dl.stats dd { margin: 0; text-align: right; font-weight: 700; font-variant-numer
 .actions .primary { margin-left: 0; }
 .actions a.ghostbtn { display: inline-flex; align-items: center; text-decoration: none; color: inherit; }
 
+/* ---------- saved: search, boards, tags, colour ---------- */
+#addFind { margin-left: 0; }
+.savedtools { display: grid; gap: 8px; padding: 8px 0 4px; }
+.savedtools input[type="search"], .info input[type="text"], .addform input[type="text"], .addform input[type="file"], .addform textarea {
+  width: 100%; min-height: 44px; padding: 8px 12px;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius);
+  font: inherit; font-size: .92rem;
+}
+.savedtools input[type="search"] { max-width: 28rem; }
+.filterrow { align-items: center; gap: 6px; }
+.chiplabel { min-width: 4.2em; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.chip.small { min-height: 36px; padding: 0 12px; font-size: .88rem; display: inline-flex; align-items: center; gap: 6px; }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--line); }
+.badge.tier-yours { background: var(--ink); color: var(--bg); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.two > div > input { margin-bottom: 0; }
+
+/* ---------- add-your-own dialog ---------- */
+#addDlg { width: min(560px, calc(100vw - 24px)); }
+.addform { padding: 22px; display: grid; gap: 6px; max-height: calc(100vh - 26px); overflow-y: auto; }
+.addform h2 { margin: 0; font-size: 1.35rem; letter-spacing: -0.02em; }
+.addform label { display: block; margin: 8px 0 4px; font-size: .85rem; font-weight: 700; }
+.addform textarea { min-height: 76px; resize: vertical; }
+.addform .note { margin: 0 0 4px; }
+
 /* ---------- footer ---------- */
 footer { max-width: 1500px; margin: 0 auto; padding: 0 16px 64px; color: var(--muted); font-size: .92rem; }
 footer details { border-top: 1px solid var(--line); padding-top: 16px; max-width: 46rem; }
@@ -205,6 +230,7 @@ footer code { background: var(--surface); padding: .1em .4em; border-radius: 3px
   dialog { overflow-y: auto; }
   .primary { margin-left: 0; }
   .scorebox .num { font-size: 3.4rem; }
+  .two { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .card img, .meta { transition: none; }
