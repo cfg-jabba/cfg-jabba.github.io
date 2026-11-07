@@ -147,6 +147,20 @@ func test_overpass() -> void:
 	await walk_to(Vector3(3.6, 3.0, -5.9))
 	await hop(Vector3(5.4, 3.95, -5.0))
 	check(pos().y > 3.8, "hop onto the wrecked car (y=%.2f)" % pos().y)
+	# sticky hands: walk into the concrete step and climb it without jumping
+	await place(Vector3(-1.3, 0.1, 0.3))
+	await walk_to(Vector3(-1.3, 2.0, -2.4), 2.5)
+	check(pos().y > 1.9, "sticky hands climbed a concrete wall (y=%.2f)" % pos().y)
+	# physics junk gets knocked around
+	var cone: Node3D = null
+	for c in get_tree().get_nodes_in_group("phys_prop"):
+		if (c as Node3D).global_position.distance_to(Vector3(2.5, 0, 4.8)) < 0.5:
+			cone = c
+	var c0 := cone.global_position
+	await place(Vector3(0.8, 0.1, 4.8))
+	await walk_to(Vector3(4.0, 0, 4.8), 1.5)
+	await wait(0.6)
+	check(cone.global_position.distance_to(c0) > 0.3 or absf(cone.rotation.x) + absf(cone.rotation.z) > 0.5, "bumped a traffic cone over (moved %.2f)" % cone.global_position.distance_to(c0))
 	# crate -> plate -> ramp
 	var crate: Node3D = find(Props.Crate)[0]
 	await place(Vector3(0.4, 0.1, 2.0))
@@ -295,6 +309,11 @@ func test_busstop() -> void:
 	await place(Vector3(0, 0.1, 1.0))
 	await walk_to(Vector3(0, 0, -2.6))
 	check(pos().z < -1.6, "walked through the gate (z=%.2f)" % pos().z)
+	# smooth metal fence is slippery: no climbing over
+	await place(Vector3(-4.0, 0.1, 0.0))
+	await walk_to(Vector3(-4.0, 0, -2.5), 2.0)
+	check(pos().y < 1.0 and pos().z > -1.0, "slippery fence can't be climbed (y=%.2f)" % pos().y)
+	await place(Vector3(0, 0.1, -2.6))
 	# the rubble staircase, by real jumps
 	await walk_to(Vector3(-5.5, 0, -0.8 - 0.6))
 	await hop(Vector3(-5.5, 1.2, -2.8))

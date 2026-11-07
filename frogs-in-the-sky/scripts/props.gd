@@ -820,3 +820,55 @@ class Crow extends Node3D:
 					global_position = _home
 					visible = true
 					_state = 0
+
+
+# ------------------------------------------------------------ Physics props: knock them over, yank them, roll them
+class PhysProp extends RigidBody3D:
+	var level: Node
+	var label := "Junk"
+	var _hit_cd := 0.0
+
+	func _ready() -> void:
+		add_to_group("tongue_target")
+		add_to_group("phys_prop")
+		if mass >= 1.5:
+			add_to_group("weight")   # heavy junk can hold down pressure plates
+		collision_layer = 4
+		collision_mask = 1 | 2 | 4
+		contact_monitor = true
+		max_contacts_reported = 2
+		can_sleep = true
+		var pm := PhysicsMaterial.new()
+		pm.friction = 0.8
+		pm.bounce = 0.15
+		physics_material_override = pm
+		angular_damp = 0.6
+		linear_damp = 0.15
+		body_entered.connect(_on_hit)
+
+	func _on_hit(_b: Node) -> void:
+		if _hit_cd > 0.0:
+			return
+		var sp := linear_velocity.length()
+		if sp > 1.2:
+			_hit_cd = 0.15
+			Sfx.play_at("click", global_position, clampf(-20.0 + sp * 3.0, -20.0, -6.0), clampf(1.6 - mass * 0.15, 0.6, 1.6), 0.15)
+
+	func _physics_process(d: float) -> void:
+		_hit_cd -= d
+		if level and global_position.y < level.kill_y - 4.0:
+			queue_free()
+
+	func knock(impulse: Vector3, at: Vector3 = Vector3.ZERO) -> void:
+		sleeping = false
+		apply_impulse(impulse, at)
+
+	## Tongue: yank it toward the frog with a little hop.
+	func collect(by: Node = null) -> void:
+		var p := by as Node3D
+		if p == null:
+			return
+		var to := p.global_position - global_position
+		to.y = 0
+		knock(to.normalized() * mass * 3.2 + Vector3.UP * mass * 2.5, Vector3(0, 0.1, 0))
+		Sfx.play_at("whoosh", global_position, -10.0, 1.4)

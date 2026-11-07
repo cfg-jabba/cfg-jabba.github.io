@@ -26,6 +26,8 @@ var _snack_seq := 0
 var _pond_pos := Vector3.ZERO
 
 static var _mats := {}
+static var _slippery := {}   # material -> true: smooth metal/paint the frog's sticky hands can't grip
+const SLIPPERY_KINDS := ["metal", "rust", "hazard", "sign_green", "white", "tile"]
 
 const KINDS := {
 	"concrete": ["bdb8ad", "a39f95", 0.32, 0.9, 0.0],
@@ -58,6 +60,8 @@ func mat(kind: String) -> ShaderMaterial:
 	if kind == "hazard":
 		m.set_shader_parameter("stripes", 1.0)
 		m.set_shader_parameter("alt_amount", 0.0)
+	if kind in SLIPPERY_KINDS:
+		_slippery[m] = true
 	_mats[kind] = m
 	return m
 
@@ -73,6 +77,8 @@ func mat_color(c: Color, moss: float = 0.0, metal: float = 0.0) -> ShaderMateria
 	m.set_shader_parameter("moss", moss)
 	m.set_shader_parameter("roughness_v", 0.45 if metal > 0.0 else 0.85)
 	m.set_shader_parameter("metallic_v", metal)
+	if metal > 0.0:
+		_slippery[m] = true
 	_mats[key] = m
 	return m
 
@@ -101,6 +107,8 @@ func box(c: Vector3, size: Vector3, material: Material, collide: bool = true, pa
 	if collide:
 		var sb := StaticBody3D.new()
 		sb.collision_layer = 1
+		if _slippery.has(material):
+			sb.set_meta("slippery", true)
 		var cs := CollisionShape3D.new()
 		var sh := BoxShape3D.new()
 		sh.size = size
@@ -338,31 +346,137 @@ func car(p: Vector3, rot_y: float, col: Color, collide: bool = true) -> Node3D:
 	return n
 
 
-func cone(p: Vector3) -> void:
+func phys(p: Vector3, vox: Dictionary, vsize: float, shape: Shape3D, shape_y: float, mass_kg: float, label: String, rot_y: float = 0.0) -> Props.PhysProp:
+	var b := Props.PhysProp.new()
+	b.level = self
+	b.mass = mass_kg
+	b.label = label
+	b.position = p
+	b.rotation.y = rot_y
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	cs.position.y = shape_y
+	b.add_child(cs)
+	b.add_child(Voxel.mesh_instance(vox, vsize, Vector3(-0.5, 0, -0.5) * vsize))
+	add_child(b)
+	return b
+
+
+func cone(p: Vector3) -> Props.PhysProp:
 	var v := {}
 	for y in 6:
-		var r := 2 - y / 3
+		var r := 2 - int(y / 3)
 		for x in range(-r, r + 1):
 			for z in range(-r, r + 1):
 				v[Vector3i(x, y, z)] = Color("e86a2a") if y != 3 else Color("f2f0e8")
 	Voxel.fill_box(v, Vector3i(-3, 0, -3), Vector3i(3, 0, 3), Color("e86a2a"))
-	var mi := Voxel.mesh_instance(v, 0.08, Vector3(-0.5, 0, -0.5) * 0.08)
-	mi.position = p
-	add_child(mi)
+	var sh := BoxShape3D.new()
+	sh.size = Vector3(0.5, 0.48, 0.5)
+	return phys(p, v, 0.08, sh, 0.24, 0.6, "Traffic Cone", rng.randf() * TAU)
 
 
-func tire(p: Vector3, flat: bool = true) -> void:
+func tire(p: Vector3, flat: bool = true) -> Props.PhysProp:
 	var v := {}
 	for a in 24:
 		var ang := a / 24.0 * TAU
 		for rr in [3, 4]:
 			v[Vector3i(roundi(cos(ang) * rr), 0, roundi(sin(ang) * rr))] = Color("26262a")
 			v[Vector3i(roundi(cos(ang) * rr), 1, roundi(sin(ang) * rr))] = Color("2e2e33")
-	var mi := Voxel.mesh_instance(v, 0.09, Vector3(-0.5, 0, -0.5) * 0.09)
-	mi.position = p
+	var sh := CylinderShape3D.new()
+	sh.radius = 0.4
+	sh.height = 0.18
+	var b := phys(p, v, 0.09, sh, 0.09, 2.0, "Old Tire")
 	if not flat:
-		mi.rotation.x = PI / 2
-	add_child(mi)
+		b.rotation.x = PI / 2
+	return b
+
+
+func can(p: Vector3, col: Color = Color("c84a3a")) -> Props.PhysProp:
+	var v := {}
+	for y in 4:
+		for x in range(-1, 2):
+			for z in range(-1, 2):
+				v[Vector3i(x, y, z)] = col if y in [1, 2] else Color("b8bcc0")
+	var sh := CylinderShape3D.new()
+	sh.radius = 0.1
+	sh.height = 0.22
+	return phys(p, v, 0.06, sh, 0.11, 0.15, "Soda Can")
+
+
+func bottle(p: Vector3) -> Props.PhysProp:
+	var v := {}
+	var g := Color("6ab08a")
+	for y in 7:
+		var r := 1 if y < 4 else 0
+		for x in range(-r, r + 1):
+			for z in range(-r, r + 1):
+				v[Vector3i(x, y, z)] = g.lightened(0.1 * float(y > 4))
+	var sh := CylinderShape3D.new()
+	sh.radius = 0.08
+	sh.height = 0.36
+	return phys(p, v, 0.055, sh, 0.18, 0.25, "Glass Bottle")
+
+
+func bucket(p: Vector3) -> Props.PhysProp:
+	var v := {}
+	for y in 6:
+		for x in range(-3, 4):
+			for z in range(-3, 4):
+				var edge := maxi(absi(x), absi(z)) == 3
+				if y == 0 or edge:
+					v[Vector3i(x, y, z)] = Color("3a7ad0") if y < 5 else Color("4a8ae0")
+	var sh := BoxShape3D.new()
+	sh.size = Vector3(0.5, 0.4, 0.5)
+	return phys(p, v, 0.07, sh, 0.2, 0.8, "Bucket")
+
+
+func flower_pot(p: Vector3) -> Props.PhysProp:
+	var v := {}
+	for y in 5:
+		var r := 2 if y < 4 else 3
+		for x in range(-r, r + 1):
+			for z in range(-r, r + 1):
+				v[Vector3i(x, y, z)] = Color("c87a4a") if y < 4 else Color("b06a3a")
+	for i in 9:
+		var x := rng.randi_range(-2, 2)
+		var z := rng.randi_range(-2, 2)
+		var h := rng.randi_range(2, 5)
+		for y in h:
+			v[Vector3i(x, 5 + y, z)] = Color("5a9a3a")
+		v[Vector3i(x, 5 + h, z)] = [Color("f2a0c0"), Color("f2e070"), Color("b490e0")][i % 3]
+	var sh := BoxShape3D.new()
+	sh.size = Vector3(0.4, 0.34, 0.4)
+	return phys(p, v, 0.07, sh, 0.17, 1.2, "Flower Pot")
+
+
+func barrel(p: Vector3) -> Props.PhysProp:
+	var v := {}
+	for y in 11:
+		for x in range(-4, 5):
+			for z in range(-4, 5):
+				if x * x + z * z <= 17:
+					v[Vector3i(x, y, z)] = Color("4a6a8a") if y % 5 != 0 else Color("3a5a7a")
+	var sh := CylinderShape3D.new()
+	sh.radius = 0.36
+	sh.height = 0.88
+	return phys(p, v, 0.08, sh, 0.44, 3.0, "Oil Drum")
+
+
+## Scatter knockable junk in a rectangle.
+func junk(x0: float, z0: float, x1: float, z1: float, y: float, count: int) -> void:
+	for i in count:
+		var p := Vector3(rng.randf_range(x0, x1), y + 0.02, rng.randf_range(z0, z1))
+		match rng.randi() % 5:
+			0:
+				can(p, [Color("c84a3a"), Color("3a8ac8"), Color("e8c040")][i % 3])
+			1:
+				bottle(p)
+			2:
+				bucket(p)
+			3:
+				flower_pot(p)
+			_:
+				cone(p)
 
 
 func streetlight(p: Vector3, rot_y: float, light_col: Color = Color("ffd8a0")) -> void:
@@ -681,6 +795,8 @@ func body_box(body: Node3D, c: Vector3, size: Vector3, material: Material) -> Me
 	cs.shape = sh
 	cs.position = c
 	body.add_child(cs)
+	if _slippery.has(material):
+		body.set_meta("slippery", true)
 	return mi
 
 

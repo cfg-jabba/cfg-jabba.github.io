@@ -15,6 +15,12 @@ It's built in **Godot 4.3** and aimed at **Steam** (Windows, Linux/Steam Deck, m
   - a billboard and a plank that spin on poles (turn them in focus mode) to make bridges
   - a two-plate gate: one crate plus one very large buddy frog (croak to call it, croak again to make it wait; it hops onto a plate)
 - **100 frog species** in the Frog Book (`scripts/frog_species.gd`). Snacks and finished levels unlock more, and you can play as any frog you've unlocked.
+- **Sticky hands**: walk or jump into rough walls (brick, concrete, wood, stone) to cling and climb.
+  - You get about 0.8 s of grip (about 2 m), which refills when you land. Jump while clinging to wall-jump.
+  - Smooth metal (fences, gates, signs, tiles) is slippery, so the puzzles can't be skipped.
+- **Real-time physics junk**: cones, tires, cans, bottles, buckets, flower pots and oil drums are rigid bodies.
+  - Bump them, yank them with your tongue, flatten them with a big landing, or blast them with a croak.
+  - Heavy junk (tires, drums, pots) can even hold down pressure plates.
 - **The world grows as you climb**: flowers, wisteria and saplings sprout as you reach new heights.
 - **Life**: idle frogs that croak back when you croak, crows that flap off when you get close, and the Snack Dish.
 - **Focus mode** (Tab / Q / right mouse, or LT / LB on a controller): time slows, the camera moves in with a shallow depth of field, you cycle through objects to read about them, and you can interact from a distance.

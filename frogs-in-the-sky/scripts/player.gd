@@ -13,6 +13,8 @@ const GRAVITY := 22.0
 const FALL_MULT := 1.3
 const CLIMB_SPEED := 2.8
 const TONGUE_RANGE := 3.2
+const GRIP_TIME := 0.8        # seconds of sticky-hand climbing before the frog needs to touch ground
+const WALL_SLIDE := 1.1
 const INTERACT_RANGE := 2.1
 
 var main: Node
@@ -23,6 +25,10 @@ var input_enabled := true
 var respawn_point := Vector3.ZERO
 var carrying_seed := false
 var climb_areas := 0
+var grip := GRIP_TIME
+var clinging := false
+var _wall_n := Vector3.ZERO
+var _press_t := 0.0
 var max_height := 0.0
 var sim_jump_held := false  # test hook: lets the headless playtest hold jump
 
@@ -110,6 +116,17 @@ func _physics_process(delta: float) -> void:
 	var dir := Vector3(input.x, 0, input.y).rotated(Vector3.UP, yaw)
 	var on_floor := is_on_floor()
 	var climbing := climb_areas > 0 and input.length() > 0.2 and can_move
+	# sticky hands: grip rough walls (brick, concrete, wood, stone). Smooth metal is slippery.
+	var wall := _grippable_wall(dir)
+	var pressing := wall != Vector3.ZERO and can_move and dir.length() > 0.2 and dir.normalized().dot(-wall) > 0.45
+	_press_t = _press_t + delta if pressing else 0.0
+	var was_clinging := clinging
+	clinging = pressing and not climbing and (not on_floor or _press_t > 0.2)
+	if clinging:
+		_wall_n = wall
+		if not was_clinging:
+			Sfx.play_at("step", global_position, -6.0, 0.7)
+			model.pulse(Vector3(1.15, 0.9, 1.15))
 
 	# horizontal
 	var target := dir * SPEED
@@ -127,10 +144,25 @@ func _physics_process(delta: float) -> void:
 		_jump_buf = 0.14
 	elif _jump_buf > 0.0:
 		_jump_buf -= delta
+	if on_floor:
+		grip = GRIP_TIME
 	if climbing:
 		velocity.y = move_toward(velocity.y, CLIMB_SPEED * clampf(input.length(), 0.4, 1.0), 30.0 * delta)
 		if _jump_buf > 0.0:
 			_do_jump(0.8)
+	elif clinging:
+		if _jump_buf > 0.0:
+			# wall jump: kick off the wall
+			_do_jump(0.85)
+			velocity += _wall_n * 4.5
+			clinging = false
+		elif grip > 0.0:
+			grip -= delta
+			velocity.y = move_toward(velocity.y, CLIMB_SPEED, 40.0 * delta)
+		else:
+			velocity.y = maxf(velocity.y - GRAVITY * delta, -WALL_SLIDE)
+		velocity.x -= _wall_n.x * 2.0
+		velocity.z -= _wall_n.z * 2.0
 	else:
 		var g := GRAVITY * (FALL_MULT if velocity.y < 0.0 else 1.0)
 		if climb_areas > 0:
@@ -155,6 +187,11 @@ func _physics_process(delta: float) -> void:
 		Sfx.play_at("land", global_position, -6.0 + k * 4.0)
 		_dust.restart()
 		_dust.emitting = true
+		for n in get_tree().get_nodes_in_group("phys_prop"):
+			var pp := n as Props.PhysProp
+			var to := pp.global_position - global_position
+			if to.length() < 1.4:
+				pp.knock((to.normalized() * 0.6 + Vector3.UP) * pp.mass * k * 1.5)
 		if main and _air_time > 0.7:
 			main.shake(0.15 * k)
 	_air_time = 0.0 if now_floor else _air_time + delta
@@ -164,7 +201,10 @@ func _physics_process(delta: float) -> void:
 	var hv := Vector2(velocity.x, velocity.z)
 	if hv.length() > 0.4:
 		_facing = lerp_angle(_facing, atan2(hv.x, hv.y), 1.0 - exp(-12.0 * delta))
+	if clinging:
+		_facing = atan2(-_wall_n.x, -_wall_n.z)
 	model.rotation.y = _facing
+	model.rotation.x = lerpf(model.rotation.x, -1.1 if clinging else 0.0, 1.0 - exp(-14.0 * delta))
 	if now_floor and hv.length() > 0.5:
 		var prev := _hop_phase
 		_hop_phase += delta * (5.0 + hv.length() * 1.6)
@@ -192,15 +232,43 @@ func _do_jump(mul: float) -> void:
 	Sfx.play_at("hop", global_position, -4.0, 1.0, 0.1)
 
 
+func _grippable_wall(dir: Vector3) -> Vector3:
+	if dir.length() < 0.2:
+		return Vector3.ZERO
+	var space := get_world_3d().direct_space_state
+	var d := dir.normalized()
+	for h in [0.2, 0.5]:
+		var from := global_position + Vector3(0, h, 0)
+		var q := PhysicsRayQueryParameters3D.create(from, from + d * 0.5, 1)
+		q.exclude = [get_rid()]
+		var hit := space.intersect_ray(q)
+		if hit.is_empty():
+			continue
+		var n: Vector3 = hit.normal
+		if absf(n.y) > 0.35:
+			continue
+		var col := hit.collider as Node
+		if col == null or col.has_meta("slippery"):
+			return Vector3.ZERO
+		n.y = 0
+		return n.normalized()
+	return Vector3.ZERO
+
+
 func _push_props() -> void:
 	for i in get_slide_collision_count():
 		var c := get_slide_collision(i)
 		var b := c.get_collider()
+		var d := -c.get_normal()
+		d.y = 0
+		if d.length() < 0.3:
+			continue
 		if b is RigidBody3D and b.has_method("push"):
-			var d := -c.get_normal()
-			d.y = 0
-			if d.length() > 0.3:
-				b.push(d.normalized())
+			b.push(d.normalized())
+		elif b is Props.PhysProp:
+			var hv := Vector2(velocity.x, velocity.z).length()
+			var pp := b as Props.PhysProp
+			pp.knock(d.normalized() * (0.6 + hv * 0.35) * pp.mass * 0.5, c.get_position() - pp.global_position + Vector3(0, 0.1, 0))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -240,6 +308,12 @@ func croak() -> void:
 	model.croak(2)
 	Sfx.play_at("croak%d" % randi_range(1, 3), global_position, -2.0, 1.0, 0.08)
 	croaked.emit(global_position)
+	# a big croak is a tiny shockwave
+	for n in get_tree().get_nodes_in_group("phys_prop"):
+		var pp := n as Props.PhysProp
+		var to := pp.global_position - global_position
+		if to.length() < 2.5:
+			pp.knock((to.normalized() + Vector3.UP * 0.6) * pp.mass * (2.5 - to.length()) * 0.9)
 
 
 func lick() -> void:
