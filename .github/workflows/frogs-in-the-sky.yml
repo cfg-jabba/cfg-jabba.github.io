@@ -46,11 +46,6 @@ jobs:
           godot --headless --export-release "Linux / Steam Deck (Steam)" export/linux/FrogsInTheSky.x86_64
           chmod +x export/linux/FrogsInTheSky.x86_64
 
-      - name: Export macOS
-        run: |
-          mkdir -p export/macos
-          godot --headless --export-release "macOS (Steam)" export/macos/FrogsInTheSky.zip
-
       - uses: actions/upload-artifact@v4
         with:
           name: FrogsInTheSky-Windows
@@ -59,6 +54,12 @@ jobs:
         with:
           name: FrogsInTheSky-Linux
           path: frogs-in-the-sky/export/linux
+
+      - name: Export macOS
+        run: |
+          mkdir -p export/macos
+          godot --headless --export-release "macOS (Steam)" export/macos/FrogsInTheSky.zip
+
       - uses: actions/upload-artifact@v4
         with:
           name: FrogsInTheSky-macOS
