@@ -1,0 +1,65 @@
+name: Frogs in the Sky builds
+
+on:
+  push:
+    paths: ["frogs-in-the-sky/**", ".github/workflows/frogs-in-the-sky.yml"]
+  pull_request:
+    paths: ["frogs-in-the-sky/**", ".github/workflows/frogs-in-the-sky.yml"]
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.3"
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    defaults:
+      run:
+        working-directory: frogs-in-the-sky
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install export templates
+        working-directory: .
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates
+          ln -sfn /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable || true
+
+      - name: Import project
+        run: godot --headless --import || godot --headless --editor --quit
+
+      - name: Playtest (solves every level)
+        run: |
+          godot --headless res://tests/test_runner.tscn 2>&1 | tee test.log
+          grep -q "RESULT: PASS" test.log
+
+      - name: Export Windows
+        run: |
+          mkdir -p export/windows
+          godot --headless --export-release "Windows Desktop (Steam)" export/windows/FrogsInTheSky.exe
+
+      - name: Export Linux / Steam Deck
+        run: |
+          mkdir -p export/linux
+          godot --headless --export-release "Linux / Steam Deck (Steam)" export/linux/FrogsInTheSky.x86_64
+          chmod +x export/linux/FrogsInTheSky.x86_64
+
+      - name: Export macOS
+        run: |
+          mkdir -p export/macos
+          godot --headless --export-release "macOS (Steam)" export/macos/FrogsInTheSky.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FrogsInTheSky-Windows
+          path: frogs-in-the-sky/export/windows
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FrogsInTheSky-Linux
+          path: frogs-in-the-sky/export/linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FrogsInTheSky-macOS
+          path: frogs-in-the-sky/export/macos

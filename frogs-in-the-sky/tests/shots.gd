@@ -13,6 +13,7 @@ func frames(n: int) -> void:
 		await get_tree().process_frame
 
 func _ready() -> void:
+	Game.save_path = "user://test_save.cfg"
 	get_window().size = Vector2i(1600, 900)
 	Game.settings.window_mode = "windowed"
 	main = load("res://scripts/main.gd").new()

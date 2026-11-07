@@ -4,6 +4,9 @@ A chill voxel climbing game about frogs from around the world climbing overgrown
 It's built in **Godot 4.3** and aimed at **Steam** (Windows, Linux/Steam Deck, macOS).
 
 ## Run it
+
+Playtesters: see **[PLAYTEST.md](PLAYTEST.md)** for no-install builds and step-by-step setup.
+
 1. Install [Godot 4.3](https://godotengine.org/download) (the standard build, not .NET).
 2. Open `frogs-in-the-sky/project.godot` and press **F5**.
 

@@ -5,7 +5,7 @@ signal settings_changed
 signal device_changed(using_pad: bool)
 
 const SETTINGS_PATH := "user://settings.cfg"
-const SAVE_PATH := "user://save.cfg"
+var save_path := "user://save.cfg"   # tests switch this so they never touch real progress
 
 var using_pad := false
 var env: Environment
@@ -283,12 +283,12 @@ func save_game() -> void:
 	var cf := ConfigFile.new()
 	for k in data:
 		cf.set_value("save", k, data[k])
-	cf.save(SAVE_PATH)
+	cf.save(save_path)
 
 
 func load_save() -> void:
 	var cf := ConfigFile.new()
-	if cf.load(SAVE_PATH) != OK:
+	if cf.load(save_path) != OK:
 		return
 	for k in data.keys():
 		if cf.has_section_key("save", k):
