@@ -41,6 +41,11 @@
   .row { display:flex; gap:8px; }
   .row .hot { flex:1; }
   @media (min-width:760px) { #card { left:24px; right:auto; margin:0; bottom:24px; width:360px; } }
+  #styles { position:fixed; left:0; right:0; top:calc(132px + env(safe-area-inset-top)); display:flex; gap:8px; padding:4px 16px 8px; overflow-x:auto; scrollbar-width:none; pointer-events:none; }
+  #styles::before, #styles::after { content:''; margin:auto; }
+  #styles button { flex:none; padding:6px 13px; font-size:14px; background:#f3ecfb; box-shadow:0 3px 0 #cdbbe4; }
+  #styles button.on { background:var(--ink); color:#fff; box-shadow:0 3px 0 var(--pink); }
+  @media (min-width:1100px) { #styles { top:26px; } }
   #err { position:fixed; inset:0; display:none; place-items:center; padding:30px; text-align:center; color:var(--ink); font-weight:600; }
 </style>
 <script type="importmap">
@@ -59,6 +64,7 @@
   </div>
   <div class="burst"><div><small>ONLY</small>$4.97<small>EACH!</small></div></div>
 </header>
+<nav id="styles" aria-label="Style"></nav>
 <div id="foot">
   <div class="hint">Tap a Dood · drag to look around</div>
   <button id="all">⬇ Download all 12 (.glb)</button>

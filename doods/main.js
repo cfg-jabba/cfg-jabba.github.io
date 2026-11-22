@@ -9,20 +9,35 @@ const YA = new V3(0, 1, 0), ZA = new V3(0, 0, 1);
 
 /* ---------- materials & primitive helpers ---------- */
 
-// soft-touch squishy rubber: matte, with a velvety edge glow instead of hard highlights
-const SOFT = { roughness: 0.78, clearcoat: 0, sheen: 1, sheenRoughness: 0.55, sheenColor: new THREE.Color('#ffffff') };
+// Each style is a finish (material recipe) plus optional body-shape overrides.
+const STYLES = {
+  squish: { label: 'Squish', fin: { roughness: 0.78, sheen: 1, sheenRoughness: 0.55, sheenColor: new THREE.Color('#ffffff') } },
+  gloss: { label: 'Glossy', fin: { roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12 } },
+  bean: { label: 'Beans', fin: { roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08 }, rock: true,
+    shape: { w: 0.8, d: 0.8, h: 1.2, low: 1, flat: 1, taper: 0, full: 0.42, boxy: 1 } },
+  gummy: { label: 'Gummy', fin: { roughness: 0.14, transmission: 0.9, thickness: 1.4, ior: 1.3, clearcoat: 0.5 } },
+  chrome: { label: 'Chrome', fin: { metalness: 1, roughness: 0.16 } },
+  blank: { label: 'Unpainted', fin: { roughness: 0.7, sheen: 0.6, sheenRoughness: 0.6, sheenColor: new THREE.Color('#ffffff') }, mono: '#e9e4da', noFace: true },
+};
+let STYLE = STYLES.squish, GOLD, STEEL;
 const matCache = new Map();
 function M(color, o) {
   if (color && color.isMaterial) return color;
-  const base = { color, ...SOFT };
+  if (STYLE.mono) color = STYLE.mono;
+  const base = { color, ...STYLE.fin };
   if (o) return new THREE.MeshPhysicalMaterial({ ...base, ...o });
   if (!matCache.has(color)) matCache.set(color, new THREE.MeshPhysicalMaterial(base));
   return matCache.get(color);
 }
-const BLACK = M('#1d1a2b', { roughness: 0.45, sheen: 0 });
-const GOLD = M('#ffcc33');
-const STEEL = M('#c3ccdd', { side: THREE.DoubleSide });
-const CHEEK = M('#ff86ad', { sheen: 0 });
+// printed details keep the same flat ink in every style
+const INK = (color, o) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.45, ...o });
+const BLACK = INK('#1d1a2b'), CHEEK = INK('#ff86ad', { roughness: 0.8 }), WHITE = INK('#ffffff');
+function setStyle(key) {
+  STYLE = STYLES[key] || STYLES.squish;
+  matCache.clear();
+  GOLD = M('#ffcc33'); STEEL = M('#c3ccdd', { side: THREE.DoubleSide });
+}
+setStyle(new URLSearchParams(location.search).get('style'));
 
 const mesh = (geo, m) => new THREE.Mesh(geo, M(m));
 const ball = (r, c, sx = 1, sy = 1, sz = 1) => { const m = mesh(new THREE.SphereGeometry(r, 28, 20), c); m.scale.set(sx, sy, sz); return m; };
@@ -150,11 +165,11 @@ function paintBody(spec) {
 const rc = new THREE.Raycaster();
 
 function makeBlob(spec) {
-  const s = { ...SHAPE, ...spec.shape };
+  const s = { ...SHAPE, ...spec.shape, ...STYLE.shape };
   const geo = bodyGeo(s);
   const root = new THREE.Group(); root.name = spec.name;
   const g = new THREE.Group(); g.position.y = s.h * s.low; root.add(g);
-  const body = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map: paintBody(spec), ...SOFT, ...spec.mat }));
+  const body = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial(STYLE.mono ? { color: STYLE.mono, ...STYLE.fin } : { map: paintBody(spec), ...STYLE.fin }));
   g.add(body);
   const probe = new THREE.Mesh(geo);
 
@@ -195,7 +210,8 @@ function makeBlob(spec) {
   };
   spec.build?.(b);
   face(b, spec.face);
-  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  const mono = STYLE.mono && M(STYLE.mono, { side: THREE.DoubleSide });   // unpainted: one material, no ink at all
+  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (mono) o.material = mono; } });
   return root;
 }
 
@@ -205,21 +221,22 @@ function eye(type, es = 1, side = 1) {
   const e = new THREE.Group();
   if (type === 'dot') {
     e.add(ball(0.088 * es, BLACK, 1, 1.15, 0.5));
-    e.add(at(ball(0.03 * es, '#ffffff'), -0.022 * es, 0.042 * es, 0.036 * es));
-    e.add(at(ball(0.014 * es, '#ffffff'), 0.03 * es, -0.032 * es, 0.04 * es));
+    e.add(at(ball(0.03 * es, WHITE), -0.022 * es, 0.042 * es, 0.036 * es));
+    e.add(at(ball(0.014 * es, WHITE), 0.03 * es, -0.032 * es, 0.04 * es));
   } else if (type === 'happy') {
     e.add(at(arc(0.066 * es, 0.021 * es, BLACK), 0, -0.03 * es, 0.005));
   } else if (type === 'sleepy') {
     const a = arc(0.066 * es, 0.021 * es, BLACK); a.rotation.z = Math.PI; e.add(at(a, 0, 0.03 * es, 0.005));
   } else if (type === 'big') {
-    e.add(ball(0.135 * es, '#ffffff', 1, 1.1, 0.45));
+    e.add(ball(0.135 * es, WHITE, 1, 1.1, 0.45));
     e.add(at(ball(0.085 * es, BLACK, 1, 1.1, 0.45), -side * 0.012 * es, -0.005, 0.036 * es));
-    e.add(at(ball(0.03 * es, '#ffffff'), -side * 0.012 * es - 0.025 * es, 0.04 * es, 0.07 * es));
+    e.add(at(ball(0.03 * es, WHITE), -side * 0.012 * es - 0.025 * es, 0.04 * es, 0.07 * es));
   }
   return e;
 }
 
 function face(b, f = {}) {
+  if (STYLE.noFace) return;
   const { eyes = 'dot', mouth = 'smile', ey = 4, eg = 27, es = 1.55, cheeks = true, my = ey - 6 } = f;
   if (eyes !== 'none') for (const side of [-1, 1]) {
     const type = eyes === 'wink' ? (side < 0 ? 'dot' : 'happy') : eyes;
@@ -298,12 +315,11 @@ const CAST = [
   },
   {
     name: 'King Gloop', cls: 'Slime Royalty', color: '#7fe36c', stats: [5, 1, 5],
-    shape: { w: 1.12, h: 0.82, d: 1.02, taper: 0.3, low: 0.8, flat: 0.5 }, mat: { roughness: 0.5 },
-    blurb: 'First monster you meet in every dungeon. Rules a kingdom of exactly one puddle.',
+    shape: { w: 1.12, h: 0.82, d: 1.02, taper: 0.3, low: 0.8, flat: 0.5 }, blurb: 'First monster you meet in every dungeon. Rules a kingdom of exactly one puddle.',
     face: { ey: 6, eg: 30, mouth: 'w' },
     paint(P) { P.ell(0.405, 0.71, 0.03, 0.075, 'rgba(255,255,255,.75)', 0.5); P.ell(0.385, 0.6, 0.011, 0.022, 'rgba(255,255,255,.75)'); P.ell(0.5, 0.2, 0.2, 0.2, 'rgba(60,190,90,.25)'); },
     build(b) {
-      b.add(horn(0.48, 0.6, 0.8, M(b.color, { roughness: 0.5 }), { pow: 0.6, tip: 0.45 }), -0.02, b.s.h * 0.72, 0);
+      b.add(horn(0.48, 0.6, 0.8, b.color, { pow: 0.6, tip: 0.45 }), -0.02, b.s.h * 0.72, 0);
       const band = torus(0.44, 0.1, GOLD); band.rotation.x = Math.PI / 2;
       const crown = group(band);
       for (let i = 0; i < 5; i++) {
@@ -421,8 +437,7 @@ const CAST = [
   },
   {
     name: 'Brewster', cls: 'Health Potion', color: '#ffd9e4', stats: [5, 1, 5],
-    shape: { w: 1.03, h: 0.98, d: 1.0, taper: 0.04, low: 0.78 }, mat: { roughness: 0.55 },
-    blurb: 'Tastes like strawberry. Restores 50 HP. Would really prefer you not drink him though.',
+    shape: { w: 1.03, h: 0.98, d: 1.0, taper: 0.04, low: 0.78 }, blurb: 'Tastes like strawberry. Restores 50 HP. Would really prefer you not drink him though.',
     face: { eyes: 'wink', ey: 8 },
     paint(P) {
       const { ctx } = P; ctx.fillStyle = '#ff5d8f'; ctx.beginPath(); ctx.moveTo(0, P.H);
@@ -447,7 +462,7 @@ const CAST = [
     face: { eyes: 'none', ey: 14, mouth: 'wide', my: 12, eg: 24 },
     build(b) {
       for (const sd of [-1, 1]) {
-        const bump = group(ball(0.25, b.color), at(ball(0.17, '#ffffff', 1, 1, 0.4), 0, 0.03, 0.2), at(ball(0.105, BLACK, 1, 1.1, 0.35), -sd * 0.015, 0.03, 0.245), at(ball(0.034, '#ffffff', 1, 1, 0.5), -sd * 0.015 - 0.03, 0.08, 0.275));
+        const bump = group(ball(0.25, b.color), at(ball(0.17, WHITE, 1, 1, 0.4), 0, 0.03, 0.2), at(ball(0.105, BLACK, 1, 1.1, 0.35), -sd * 0.015, 0.03, 0.245), at(ball(0.034, WHITE, 1, 1, 0.5), -sd * 0.015 - 0.03, 0.08, 0.275));
         const { p } = b.surf(sd * 27, 58); bump.rotation.z = -sd * 0.12; b.add(bump, p.x * 1.1, p.y + 0.02, p.z + 0.02);
         b.add(ball(0.2, b.color, 1.1, 0.55, 1.3), sd * 0.42, b.floor + 0.1, 0.6);
       }
@@ -512,6 +527,17 @@ const blobs = CAST.map((spec, i) => {
   return { spec, root, proxy, shade, home: new V3(), yaw: (Math.sin(i * 12.9898) * 43758.5453 % 1) * 0.3, s: 0, sv: 0, w: 0, wv: 0, vis: 1, hop: -1, nextHop: 2 + Math.random() * 8, ph: Math.random() * 10, wisp: root.getObjectByName('wisp') };
 });
 
+function restyle(key) {
+  setStyle(key);
+  for (const b of blobs) {
+    b.root.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.map?.dispose(); o.material.dispose(); } });
+    scene.remove(b.root);
+    const root = makeBlob(b.spec); root.position.copy(b.root.position); root.rotation.copy(b.root.rotation);
+    scene.add(root); b.root = root; b.sv = -4;
+  }
+  document.querySelectorAll('#styles button').forEach(el => el.classList.toggle('on', STYLES[el.dataset.k] === STYLE));
+}
+
 /* ---------- layout & camera ---------- */
 
 let sel = -1, flying = true, bounds = { hx: 1, hz: 1 };
@@ -531,7 +557,7 @@ function layout() {
 function overview() {
   const el = (portrait() ? 54 : 44) * D, dir = new V3(0, Math.sin(el), Math.cos(el)), target = new V3(0, 0.8, 0);
   const pts = []; for (const x of [-1, 1]) for (const z of [-1, 1]) for (const y of [0, 2.6]) pts.push(new V3(x * bounds.hx, y, z * bounds.hz));
-  const top = 1 - 2 * (innerWidth < 760 ? document.querySelector('header').offsetHeight + 6 : 50) / innerHeight, bot = -1 + 2 * 96 / innerHeight;
+  const top = 1 - 2 * (innerWidth < 1100 ? document.querySelector('header').offsetHeight + 56 : 84) / innerHeight, bot = -1 + 2 * 96 / innerHeight;
   const cam = camera.clone(); let lo = 4, hi = 160;
   for (let k = 0; k < 24; k++) {
     const mid = (lo + hi) / 2; cam.position.copy(target).addScaledVector(dir, mid); cam.lookAt(target); cam.updateMatrixWorld();
@@ -566,6 +592,10 @@ camera.position.copy(goal.pos).addScaledVector(new V3(0, 0.4, 1), 6); controls.t
 /* ---------- UI ---------- */
 
 const $ = s => document.querySelector(s), card = $('#card'), foot = $('#foot');
+for (const [k, st] of Object.entries(STYLES)) {
+  const el = document.createElement('button'); el.textContent = st.label; el.dataset.k = k; el.classList.toggle('on', st === STYLE);
+  el.onclick = () => restyle(k); $('#styles').append(el);
+}
 function select(i) {
   sel = i;
   card.classList.toggle('on', i >= 0);
@@ -621,9 +651,9 @@ async function download(list, filename) {
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-$('#glb').onclick = () => sel >= 0 && download([blobs[sel]], `${slug(blobs[sel].spec.name)}.glb`);
-$('#all').onclick = () => download(blobs, 'doods-series-1.glb');
-window.__doods = { blobs, select, download, snap(i) { select(i); camera.position.copy(goal.pos); controls.target.copy(goal.target); blobs.forEach((b, k) => { b.vis = k === i ? 1 : 0; b.root.rotation.y = 0; }); } };
+$('#glb').onclick = () => sel >= 0 && download([blobs[sel]], `${slug(blobs[sel].spec.name)}-${slug(STYLE.label)}.glb`);
+$('#all').onclick = () => download(blobs, `doods-series-1-${slug(STYLE.label)}.glb`);
+window.__doods = { blobs, select, download, restyle, snap(i) { select(i); camera.position.copy(goal.pos); controls.target.copy(goal.target); blobs.forEach((b, k) => { b.vis = k === i ? 1 : 0; b.root.rotation.y = 0; }); } };
 
 /* ---------- animate ---------- */
 
@@ -639,7 +669,8 @@ renderer.setAnimationLoop(() => {
     b.shade.material.opacity = b.vis * (1 - b.root.position.y * 0.8); b.shade.scale.setScalar(b.vis);
     b.root.scale.set((1 - (sy - 1) * 0.8) * b.vis, sy * b.vis, (1 - (sy - 1) * 0.8) * b.vis);
     // weighted-bean wobble
-    b.wv += (-60 * b.w - 3.2 * b.wv) * dt; b.w += b.wv * dt; b.root.rotation.z = b.w * 0.35;
+    b.wv += (-60 * b.w - 3.2 * b.wv) * dt; b.w += b.wv * dt; b.root.rotation.z = b.w * 0.35 + (STYLE.rock ? Math.sin(t * 1.7 + b.ph) * 0.09 : 0);
+    b.root.rotation.x = STYLE.rock ? Math.cos(t * 1.3 + b.ph * 2) * 0.06 : 0;
     // hops
     if (b.hop < 0 && sel < 0 && (b.nextHop -= dt) < 0) { b.hop = 0; b.sv = -3; }
     if (b.hop >= 0) {
