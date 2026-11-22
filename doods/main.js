@@ -9,24 +9,27 @@ const YA = new V3(0, 1, 0), ZA = new V3(0, 0, 1);
 
 /* ---------- materials & primitive helpers ---------- */
 
+// soft-touch squishy rubber: matte, with a velvety edge glow instead of hard highlights
+const SOFT = { roughness: 0.78, clearcoat: 0, sheen: 1, sheenRoughness: 0.55, sheenColor: new THREE.Color('#ffffff') };
 const matCache = new Map();
 function M(color, o) {
   if (color && color.isMaterial) return color;
-  const base = { color, roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.3 };
+  const base = { color, ...SOFT };
   if (o) return new THREE.MeshPhysicalMaterial({ ...base, ...o });
   if (!matCache.has(color)) matCache.set(color, new THREE.MeshPhysicalMaterial(base));
   return matCache.get(color);
 }
-const BLACK = M('#1d1a2b', { roughness: 0.15, clearcoat: 1 });
-const GOLD = M('#ffc928', { metalness: 0.2, roughness: 0.32 });
-const STEEL = M('#c3ccdd', { metalness: 0.25, roughness: 0.3, side: THREE.DoubleSide });
-const CHEEK = M('#ff86ad', { roughness: 0.85, clearcoat: 0 });
+const BLACK = M('#1d1a2b', { roughness: 0.45, sheen: 0 });
+const GOLD = M('#ffcc33');
+const STEEL = M('#c3ccdd', { side: THREE.DoubleSide });
+const CHEEK = M('#ff86ad', { sheen: 0 });
 
 const mesh = (geo, m) => new THREE.Mesh(geo, M(m));
 const ball = (r, c, sx = 1, sy = 1, sz = 1) => { const m = mesh(new THREE.SphereGeometry(r, 28, 20), c); m.scale.set(sx, sy, sz); return m; };
 const cyl = (rt, rb, h, c, open = false) => mesh(new THREE.CylinderGeometry(rt, rb, h, 28, 1, open), c);
 const cone = (r, h, c) => mesh(new THREE.ConeGeometry(r, h, 20), c);
 const box = (w, h, d, c) => mesh(new THREE.BoxGeometry(w, h, d), c);
+const pill = (r, len, c) => mesh(new THREE.CapsuleGeometry(r, len, 8, 18), c);
 const torus = (r, t, c) => mesh(new THREE.TorusGeometry(r, t, 12, 40), c);
 const group = (...kids) => { const g = new THREE.Group(); kids.forEach(k => g.add(k)); return g; };
 const at = (o, x = 0, y = 0, z = 0) => { o.position.set(x, y, z); return o; };
@@ -63,13 +66,13 @@ function horn(r, len, bend, c, { pow = 1, tip = 0, stripes = null, bands = 5 } =
   return mesh(geo, stripes ? M('#ffffff', { vertexColors: true }) : c);
 }
 
-function star(R, c, depth = 0.05) {
+function star(R, c, depth = 0.1) {
   const sh = new THREE.Shape();
   for (let i = 0; i < 10; i++) {
-    const r = i % 2 ? R * 0.5 : R, a = i / 10 * TAU + Math.PI / 2;
+    const r = i % 2 ? R * 0.58 : R * 0.85, a = i / 10 * TAU + Math.PI / 2;
     sh[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r);
   }
-  const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelSize: R * 0.1, bevelThickness: R * 0.1, bevelSegments: 2 });
+  const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelSize: R * 0.2, bevelThickness: depth * 0.6, bevelSegments: 5 });
   geo.center();
   return mesh(geo, c);
 }
@@ -151,7 +154,7 @@ function makeBlob(spec) {
   const geo = bodyGeo(s);
   const root = new THREE.Group(); root.name = spec.name;
   const g = new THREE.Group(); g.position.y = s.h * s.low; root.add(g);
-  const body = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map: paintBody(spec), roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.35, ...spec.mat }));
+  const body = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map: paintBody(spec), ...SOFT, ...spec.mat }));
   g.add(body);
   const probe = new THREE.Mesh(geo);
 
@@ -220,7 +223,7 @@ function face(b, f = {}) {
   const { eyes = 'dot', mouth = 'smile', ey = 4, eg = 27, es = 1.55, cheeks = true, my = ey - 6 } = f;
   if (eyes !== 'none') for (const side of [-1, 1]) {
     const type = eyes === 'wink' ? (side < 0 ? 'dot' : 'happy') : eyes;
-    b.put(eye(type, es, side), side * eg, ey);
+    const e = eye(type, es, side); e.scale.z = 0.4; b.put(e, side * eg, ey);
   }
   if (cheeks) for (const side of [-1, 1]) b.put(ball(0.105, CHEEK, 1, 0.62, 0.2), side * (eg + 13), ey - 9);
   const smile = (r, x = 0) => { const a = arc(r, 0.022, BLACK); a.rotation.z = Math.PI; return at(a, x, r * 0.5, 0.004); };
@@ -237,16 +240,14 @@ const CAST = [
     name: 'Sir Squish', cls: 'Knight', color: '#7db4ea', belly: '#e8f4ff', stats: [4, 3, 5],
     blurb: 'Sworn protector of the snack drawer. Has never once lost a duel (has never once been in a duel).',
     build(b) {
-      b.cap(0.68, STEEL, 1.05); b.ring(0.68, GOLD, 0.05, 1.065);
-      b.put(box(0.17, 0.34, 0.1, STEEL), 0, 37, { out: 0.03 });
-      const plume = horn(0.26, 0.95, 1.6, '#ff5470', { pow: 0.6, tip: 0.6 });
-      b.put(plume, 0, 90, { up: true, out: -0.06 }); plume.rotateY(Math.PI / 2);
-      const shield = group(ball(0.31, '#3f6fd8', 1, 1.15, 0.3), at(ball(0.11, GOLD, 1, 1, 0.5), 0, 0, 0.08), at(torus(0.3, 0.035, GOLD), 0, 0, 0.02));
-      shield.children[2].scale.y = 1.15; shield.scale.setScalar(1.45);
-      b.put(shield, 47, -20, { out: 0.12 });
-      const tipB = box(0.127, 0.127, 0.08, STEEL); tipB.rotation.z = Math.PI / 4;
-      const sword = group(at(box(0.18, 0.46, 0.08, STEEL), 0, 0.36), at(tipB, 0, 0.59), at(box(0.44, 0.1, 0.13, GOLD), 0, 0.1), at(cyl(0.06, 0.06, 0.2, '#7a4b2e'), 0, -0.02), at(ball(0.09, GOLD), 0, -0.14));
-      b.put(sword, -48, -17, { out: 0.16, roll: 14 });
+      b.cap(0.68, STEEL, 1.06); b.ring(0.68, GOLD, 0.075, 1.07);
+      const plume = horn(0.3, 0.75, 1.3, '#ff5470', { pow: 0.4, tip: 0.8 });
+      b.put(plume, 0, 90, { up: true, out: -0.1 }); plume.rotateY(Math.PI / 2);
+      const shield = group(ball(0.37, GOLD, 1, 1.15, 0.4), at(ball(0.3, '#3f6fd8', 1, 1.15, 0.5), 0, 0, 0.04), at(ball(0.12, GOLD, 1, 1, 0.7), 0, 0, 0.14));
+      b.put(shield, 47, -20, { out: 0.02 });
+      const guard = pill(0.085, 0.24, GOLD); guard.rotation.z = Math.PI / 2;
+      const sword = group(at(pill(0.1, 0.32, STEEL), 0, 0.37), at(guard, 0, 0.1), at(ball(0.1, GOLD), 0, -0.06));
+      b.put(sword, -46, -16, { out: 0.05, roll: 14 });
     },
   },
   {
@@ -260,14 +261,13 @@ const CAST = [
     },
     build(b) {
       const purple = '#5b3fb5';
-      const hat = group(ball(0.8, purple, 1, 0.1, 1), horn(0.5, 1.3, 1.0, purple, { pow: 0.85, tip: 0.12 }));
-      const band = torus(0.46, 0.06, GOLD); band.rotation.x = Math.PI / 2; hat.add(at(band, 0.02, 0.1, 0));
-      const st = star(0.13, '#ffd93b'); st.rotation.x = -0.35; hat.add(at(st, 0.1, 0.42, 0.37));
+      const hat = group(ball(0.82, purple, 1, 0.22, 1), horn(0.56, 1.05, 0.9, purple, { pow: 0.6, tip: 0.45 }));
+      const band = torus(0.5, 0.09, GOLD); band.rotation.x = Math.PI / 2; hat.add(at(band, 0.02, 0.15, 0));
+      const st = star(0.2, '#ffd93b'); st.rotation.x = -0.35; hat.add(at(st, 0.1, 0.46, 0.34));
       hat.rotation.set(-0.08, 0.5, -0.1);
-      b.add(hat, 0, b.s.h * 0.86, 0);
-      const wand = group(at(cyl(0.055, 0.065, 0.6, '#8a5a3c'), 0, 0.05), at(star(0.24, '#ffd93b', 0.1), 0, 0.5, 0));
-      b.put(wand, 52, -20, { out: 0.16, roll: -20 });
+      b.add(hat, 0, b.s.h * 0.84, 0);
       for (const [yw, pt, r] of [[0, -22, 0.2], [-13, -15, 0.17], [13, -15, 0.17], [-24, -7, 0.13], [24, -7, 0.13], [0, -34, 0.14]]) b.put(ball(r, '#ffffff'), yw, pt, { out: -0.03 });
+      for (const sd of [-1, 1]) b.put(ball(0.15, b.color, 1, 1.25, 1), sd * 64, -18, { out: 0.02 });
     },
   },
   {
@@ -284,28 +284,32 @@ const CAST = [
       const snout = group(ball(0.25, '#ffb9ab', 1, 0.7, 0.6), at(ball(0.04, '#b5303a', 1, 1.3, 0.6), -0.085, 0.04, 0.125), at(ball(0.04, '#b5303a', 1, 1.3, 0.6), 0.085, 0.04, 0.125));
       b.put(snout, 0, 3, { out: -0.04 });
       for (const sd of [-1, 1]) {
-        const h = horn(0.15, 0.48, 0.9 * sd, '#fff1cf', { pow: 0.8, tip: 0.3 });
-        b.put(h, sd * 30, 64, { up: true, out: -0.04 });
-        const w = wing('#c73a3f'); w.scale.set(sd * 1.15, 1.15, 1.15); w.rotation.y = sd * 0.45;
-        b.add(w, sd * 0.78 * b.s.w, 0.2, -0.3);
+        b.put(horn(0.17, 0.34, 0.7 * sd, '#fff1cf', { pow: 0.4, tip: 0.8 }), sd * 30, 64, { up: true, out: -0.05 });
+        const w = group();   // stubby three-lobed wing, as thick as a thumb
+        for (const [ang, len] of [[0.3, 0.6], [0.9, 0.5], [1.45, 0.38]]) { const f = horn(0.18, len, 0, '#c73a3f', { pow: 0.35, tip: 0.85 }); f.rotation.z = -sd * ang; w.add(f); }
+        w.scale.set(1.35, 1.35, 0.85); w.rotation.y = sd * 0.25;
+        b.add(w, sd * 0.74 * b.s.w, 0.15, -0.08);
         b.add(ball(0.2, b.color, 1, 0.6, 1.25), sd * 0.38, b.floor + 0.1, 0.62);
       }
-      for (const [p, sz] of [[86, 1], [60, 0.85], [34, 0.7]]) b.put(cone(0.1 * sz, 0.26 * sz, '#ffb347'), 180, p, { up: true, out: 0.06 * sz });
-      const tail = horn(0.2, 1.0, 1.7, b.color, { pow: 0.7, tip: 0.1 }); tail.scale.x = -1; tail.rotation.z = -Math.PI / 2; tail.rotation.y = 0.5;
-      b.add(tail, 0.55, b.floor + 0.28, -0.55);
+      for (const [p, sz] of [[86, 1], [60, 0.85], [34, 0.7]]) b.put(ball(0.15 * sz, '#ffb347', 1, 1.3, 1), 180, p, { up: true, out: 0.03 });
+      const tail = horn(0.27, 0.75, 1.5, b.color, { pow: 0.5, tip: 0.6 }); tail.scale.x = -1; tail.rotation.z = -Math.PI / 2; tail.rotation.y = 0.5;
+      b.add(tail, 0.5, b.floor + 0.3, -0.5);
     },
   },
   {
     name: 'King Gloop', cls: 'Slime Royalty', color: '#7fe36c', stats: [5, 1, 5],
-    shape: { w: 1.12, h: 0.82, d: 1.02, taper: 0.3, low: 0.8, flat: 0.5 }, mat: { roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.1 },
+    shape: { w: 1.12, h: 0.82, d: 1.02, taper: 0.3, low: 0.8, flat: 0.5 }, mat: { roughness: 0.5 },
     blurb: 'First monster you meet in every dungeon. Rules a kingdom of exactly one puddle.',
     face: { ey: 6, eg: 30, mouth: 'w' },
     paint(P) { P.ell(0.405, 0.71, 0.03, 0.075, 'rgba(255,255,255,.75)', 0.5); P.ell(0.385, 0.6, 0.011, 0.022, 'rgba(255,255,255,.75)'); P.ell(0.5, 0.2, 0.2, 0.2, 'rgba(60,190,90,.25)'); },
     build(b) {
-      const tip = horn(0.46, 0.7, 0.8, M(b.color, { roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.1 }), { pow: 0.8, tip: 0.15 });
-      b.add(tip, -0.02, b.s.h * 0.72, 0);
-      const crown = group(cyl(0.47, 0.4, 0.2, M('#ffc928', { metalness: 0.2, roughness: 0.32, side: THREE.DoubleSide }), true));
-      for (let i = 0; i < 6; i++) { const a = (i + 0.5) / 6 * TAU, x = Math.sin(a), z = Math.cos(a); crown.add(at(cone(0.13, 0.28, GOLD), x * 0.44, 0.2, z * 0.44), at(ball(0.06, i % 2 ? '#ff4d6d' : '#4dc3ff'), x * 0.45, 0, z * 0.45)); }
+      b.add(horn(0.48, 0.6, 0.8, M(b.color, { roughness: 0.5 }), { pow: 0.6, tip: 0.45 }), -0.02, b.s.h * 0.72, 0);
+      const band = torus(0.44, 0.1, GOLD); band.rotation.x = Math.PI / 2;
+      const crown = group(band);
+      for (let i = 0; i < 5; i++) {
+        const a = (i + 0.5) / 5 * TAU, a2 = i / 5 * TAU;
+        crown.add(at(ball(0.13, GOLD, 1, 1.6, 1), Math.sin(a) * 0.44, 0.13, Math.cos(a) * 0.44), at(ball(0.075, i % 2 ? '#ff4d6d' : '#4dc3ff'), Math.sin(a2) * 0.52, 0, Math.cos(a2) * 0.52));
+      }
       crown.rotation.set(0.06, 0, -0.1);
       b.add(crown, 0, b.s.h * 0.72 + 0.14, 0);
     },
@@ -321,12 +325,11 @@ const CAST = [
       P.rect(0.5, 0.045, 1, 0.03, '#ffcb3d');
     },
     build(b) {
-      const tip = horn(0.34, 0.6, 1.5, b.color, { pow: 0.7, tip: 0.3 }); tip.rotation.y = Math.PI / 2;
+      const tip = horn(0.36, 0.5, 1.4, b.color, { pow: 0.5, tip: 0.6 }); tip.rotation.y = Math.PI / 2;
       b.add(tip, 0, b.s.h * 0.8, -0.3);
-      const halo = torus(0.4, 0.045, M('#ffe27a', { emissive: '#ffb300', emissiveIntensity: 0.6 })); halo.rotation.set(Math.PI / 2 - 0.2, 0, 0.1);
-      b.add(halo, 0, b.s.h + 0.38, 0.1);
-      const staff = group(at(cyl(0.055, 0.055, 1.3, '#9b6b43'), 0, 0.35), at(torus(0.2, 0.06, GOLD), 0, 1.16), at(ball(0.13, M('#58e6a5', { emissive: '#1fae6f', emissiveIntensity: 0.5 })), 0, 1.16));
-      b.put(staff, -66, -20, { out: 0.15, roll: 8 });
+      const halo = torus(0.4, 0.095, '#ffd95a'); halo.rotation.set(Math.PI / 2 - 0.15, 0, 0.08);
+      b.add(halo, 0, b.s.h * 0.92, 0.02);
+      for (const sd of [-1, 1]) b.put(ball(0.15, b.color, 1, 1.25, 1), sd * 64, -16, { out: 0.02 });
     },
   },
   {
@@ -336,17 +339,16 @@ const CAST = [
     under(P) { P.ell(0.5 - 0.058, 0.575, 0.06, 0.07, '#4a5066', 0.3); P.ell(0.5 + 0.058, 0.575, 0.06, 0.07, '#4a5066', -0.3); },
     build(b) {
       for (const sd of [-1, 1]) {
-        const ear = group(ball(0.27, b.color, 1, 1, 0.45), at(ball(0.16, '#4a5066', 1, 1, 0.45), 0, 0, 0.06));
+        const ear = group(ball(0.27, b.color, 1, 1, 0.7), at(ball(0.16, '#4a5066', 1, 1, 0.5), 0, 0, 0.12));
         ear.children.forEach(k => k.position.y = 0.17);
-        const { p, n } = b.surf(sd * 44, 50); ear.rotation.z = -sd * 0.55; b.add(ear, p.x, p.y - 0.08, p.z);
+        const { p } = b.surf(sd * 44, 50); ear.rotation.z = -sd * 0.55; b.add(ear, p.x, p.y - 0.08, p.z);
       }
       b.put(ball(0.065, BLACK, 1.2, 0.8, 0.8), 0, 6, { out: 0.01 });
-      const tail = horn(0.22, 1.1, 1.9, null, { pow: 0.45, tip: 0.5, stripes: ['#4a5066', '#c9cfdc'], bands: 7 }); tail.scale.x = -1; tail.rotation.z = -Math.PI / 2; tail.rotation.y = 0.35;
-      b.add(tail, 0.6, b.floor + 0.3, -0.45);
-      const sack = group(ball(0.28, '#dcb878', 1, 0.95, 1), at(cyl(0.1, 0.07, 0.12, '#dcb878'), 0, 0.27), at(torus(0.075, 0.025, '#8a5a3c'), 0, 0.23));
-      sack.children[2].rotation.x = Math.PI / 2;
-      const coin = cyl(0.085, 0.085, 0.03, GOLD); coin.rotation.set(1.2, 0, 0.4); sack.add(at(coin, 0.03, 0.36, 0.03));
-      b.put(sack, -50, -27, { out: 0.2, up: true });
+      const tail = horn(0.3, 0.9, 1.7, null, { pow: 0.4, tip: 0.7, stripes: ['#4a5066', '#c9cfdc'], bands: 6 }); tail.scale.x = -1; tail.rotation.z = -Math.PI / 2; tail.rotation.y = 0.35;
+      b.add(tail, 0.5, b.floor + 0.34, -0.42);
+      const coin = cyl(0.11, 0.11, 0.09, GOLD); coin.rotation.set(1.2, 0, 0.4);
+      const sack = group(ball(0.3, '#dcb878', 1, 0.95, 1), at(ball(0.14, '#dcb878'), 0, 0.29), at(coin, 0.02, 0.4, 0.04));
+      b.put(sack, -50, -27, { out: 0.12, up: true });
     },
   },
   {
@@ -383,13 +385,10 @@ const CAST = [
       P.rect(0.5, 0.03, 1, 0.06, '#ffcb3d'); P.rect(0.5, 0.56, 1, 0.045, '#5a2f14'); P.rect(0.5, 0.6, 1, 0.03, '#ffcb3d');
     },
     build(b) {
-      for (const yaw of [-30, -11, -2, 2, 11, 30]) {
-        const t = cone(0.075, 0.18, '#fffdf5'); t.rotation.x = Math.PI;
-        b.put(group(at(t, 0, -0.08, 0)), yaw, 7.5, { out: 0.02 });
-      }
-      const tongue = ball(0.2, '#ff7fa3', 1, 0.3, 1.3); tongue.rotation.x = 0.55;
-      b.add(tongue, 0.05, -0.12, b.s.d * 0.86);
-      for (const sd of [-1, 1]) b.put(ball(0.07, CHEEK, 1, 0.62, 0.22), sd * 34, 27);
+      for (const yaw of [-30, -13, -3, 3, 13, 30]) b.put(ball(0.09, '#fffdf5', 1, 1.4, 0.8), yaw, 5);
+      const tongue = ball(0.2, '#ff7fa3', 1, 0.5, 1.2); tongue.rotation.x = 0.55;
+      b.add(tongue, 0.05, -0.14, b.s.d * 0.84);
+      for (const sd of [-1, 1]) b.put(ball(0.09, CHEEK, 1, 0.62, 0.22), sd * 34, 27);
     },
   },
   {
@@ -398,13 +397,13 @@ const CAST = [
     face: { eyes: 'sleepy' },
     under(P) { for (const [u, v, r] of [[0.2, 0.6, 0.03], [0.3, 0.3, 0.04], [0.72, 0.45, 0.035], [0.8, 0.7, 0.03], [0.9, 0.3, 0.04], [0.1, 0.25, 0.03], [0.66, 0.75, 0.02], [0.34, 0.74, 0.022]]) P.ell(u, v, r, r * 1.6, '#93a1ba'); },
     build(b) {
-      const cm = M('#86f1ff', { roughness: 0.08, flatShading: true, emissive: '#19a8cc', emissiveIntensity: 0.4, clearcoat: 1 });
-      const gem = sc => { const m = mesh(new THREE.OctahedronGeometry(1), cm); m.scale.set(0.26 * sc, 0.44 * sc, 0.26 * sc); return m; };
-      for (const [yaw, p, sc, roll] of [[0, 88, 1.3, 0], [-34, 66, 0.95, 20], [38, 64, 1.05, 50], [180, 58, 1, 0], [120, 50, 0.75, 0], [-125, 52, 0.7, 0]])
-        b.put(gem(sc), yaw, p, { up: true, out: 0.12 * sc, roll });
-      const core = mesh(new THREE.OctahedronGeometry(1), cm); core.scale.set(0.2, 0.25, 0.08);
-      b.put(core, 0, -26, { out: 0.01 });
-      for (const sd of [-1, 1]) b.put(ball(0.15, '#93a1ba', 1, 1.2, 1), sd * 72, -18, { out: 0.03 });
+      const cm = M('#86e9f7', { flatShading: true, roughness: 0.6 });
+      const gem = sc => { const m = mesh(new THREE.IcosahedronGeometry(1, 0), cm); m.scale.set(0.3 * sc, 0.4 * sc, 0.3 * sc); return m; };
+      for (const [yaw, p, sc, roll] of [[0, 88, 1.25, 0], [-36, 64, 0.95, 20], [40, 62, 1.05, 50], [180, 58, 1, 0], [120, 50, 0.8, 0], [-125, 52, 0.75, 0]])
+        b.put(gem(sc), yaw, p, { up: true, out: 0.06 * sc, roll });
+      const core = mesh(new THREE.IcosahedronGeometry(1, 0), cm); core.scale.set(0.22, 0.26, 0.12);
+      b.put(core, 0, -26);
+      for (const sd of [-1, 1]) b.put(ball(0.16, '#93a1ba', 1, 1.2, 1), sd * 68, -18, { out: 0.02 });
     },
   },
   {
@@ -414,15 +413,15 @@ const CAST = [
     face: { es: 1.7, ey: 10, mouth: 'o', eg: 24 },
     build(b) {
       for (let i = 0; i < 9; i++) { const a = (i + 0.5) / 9 * TAU; b.add(ball(0.22, b.color), Math.sin(a) * 0.74 * b.s.w, b.floor + 0.21, Math.cos(a) * 0.74 * b.s.d); }
-      for (const sd of [-1, 1]) { const arm = ball(0.14, b.color, 1, 1.6, 1); b.put(arm, sd * 66, -4, { out: 0.03 }); arm.rotateZ(-sd * 0.8); }
-      const fm = M('#9fe6ff', { emissive: '#35a9ff', emissiveIntensity: 0.9, roughness: 0.3 });
-      const wisp = group(ball(0.15, fm), at(horn(0.135, 0.42, -0.9, fm, { pow: 0.8, tip: 0.2 }), 0, 0.05, 0), at(ball(0.028, BLACK), -0.05, 0.01, 0.135), at(ball(0.028, BLACK), 0.05, 0.01, 0.135));
-      b.add(wisp, 1.02, 0.75, 0.25); wisp.name = 'wisp';
+      for (const sd of [-1, 1]) { const arm = ball(0.16, b.color, 1, 1.5, 1); b.put(arm, sd * 66, -4, { out: 0.01 }); arm.rotateZ(-sd * 0.8); }
+      const fm = M('#8fdcff');   // little soul-flame buddy, fused to the head
+      const wisp = group(ball(0.22, fm), at(horn(0.2, 0.36, -0.9, fm, { pow: 0.5, tip: 0.6 }), 0, 0.08, 0), at(ball(0.035, BLACK, 1, 1.2, 0.5), -0.07, 0.02, 0.2), at(ball(0.035, BLACK, 1, 1.2, 0.5), 0.07, 0.02, 0.2));
+      const { p } = b.surf(48, 58); b.add(wisp, p.x + 0.04, p.y + 0.1, p.z);
     },
   },
   {
     name: 'Brewster', cls: 'Health Potion', color: '#ffd9e4', stats: [5, 1, 5],
-    shape: { w: 1.03, h: 0.98, d: 1.0, taper: 0.04, low: 0.78 }, mat: { roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.1 },
+    shape: { w: 1.03, h: 0.98, d: 1.0, taper: 0.04, low: 0.78 }, mat: { roughness: 0.55 },
     blurb: 'Tastes like strawberry. Restores 50 HP. Would really prefer you not drink him though.',
     face: { eyes: 'wink', ey: 8 },
     paint(P) {
@@ -435,11 +434,11 @@ const CAST = [
       ctx.beginPath(); ctx.moveTo(x, y + k); ctx.bezierCurveTo(x - k * 1.5, y - k * 0.2, x - k * 0.6, y - k * 1.2, x, y - k * 0.4); ctx.bezierCurveTo(x + k * 0.6, y - k * 1.2, x + k * 1.5, y - k * 0.2, x, y + k); ctx.fill();
     },
     build(b) {
-      const glass = M('#ffe6ee', { roughness: 0.2, clearcoat: 1 }), h = b.s.h;
+      const glass = '#ffe6ee', h = b.s.h;
       b.add(cyl(0.3, 0.38, 0.4, glass), 0, h + 0.08, 0);
-      const lip = torus(0.31, 0.055, glass); lip.rotation.x = Math.PI / 2; b.add(lip, 0, h + 0.28, 0);
-      b.add(cyl(0.3, 0.25, 0.28, M('#c8935a', { roughness: 0.9, clearcoat: 0 })), 0, h + 0.42, 0);
-      const tag = star(0.12, '#ffd93b'); tag.rotation.z = 0.3; b.add(tag, 0.42, h + 0.12, 0.2);
+      const lip = torus(0.31, 0.085, glass); lip.rotation.x = Math.PI / 2; b.add(lip, 0, h + 0.28, 0);
+      b.add(cyl(0.3, 0.25, 0.28, '#c8935a'), 0, h + 0.42, 0);
+      b.put(star(0.2, '#ffd93b'), 38, 50, { out: 0.03, roll: 15 });
     },
   },
   {
@@ -448,18 +447,17 @@ const CAST = [
     face: { eyes: 'none', ey: 14, mouth: 'wide', my: 12, eg: 24 },
     build(b) {
       for (const sd of [-1, 1]) {
-        const bump = group(ball(0.25, b.color), at(ball(0.17, '#ffffff', 1, 1, 0.5), 0, 0.03, 0.2), at(ball(0.105, BLACK, 1, 1.1, 0.5), -sd * 0.015, 0.03, 0.255), at(ball(0.034, '#ffffff'), -sd * 0.015 - 0.03, 0.08, 0.3));
+        const bump = group(ball(0.25, b.color), at(ball(0.17, '#ffffff', 1, 1, 0.4), 0, 0.03, 0.2), at(ball(0.105, BLACK, 1, 1.1, 0.35), -sd * 0.015, 0.03, 0.245), at(ball(0.034, '#ffffff', 1, 1, 0.5), -sd * 0.015 - 0.03, 0.08, 0.275));
         const { p } = b.surf(sd * 27, 58); bump.rotation.z = -sd * 0.12; b.add(bump, p.x * 1.1, p.y + 0.02, p.z + 0.02);
         b.add(ball(0.2, b.color, 1.1, 0.55, 1.3), sd * 0.42, b.floor + 0.1, 0.6);
       }
       const red = '#e8524a';
-      const hat = group(ball(0.34, red, 1, 0.2, 1), horn(0.27, 0.55, 1.1, red, { pow: 0.75, tip: 0.25 }));
-      const feather = ball(0.07, '#fff3a8', 1, 4.2, 0.35); feather.rotation.z = -0.6; hat.add(at(feather, 0.2, 0.3, -0.05));
+      const hat = group(ball(0.36, red, 1, 0.32, 1), horn(0.3, 0.48, 1.0, red, { pow: 0.5, tip: 0.6 }), at(ball(0.12, '#fff3a8'), 0.24, 0.42, 0));
       hat.rotation.set(-0.35, -0.4, 0);
       b.add(hat, 0, b.s.h * 0.93, -0.22);
       const wood = '#8a5a3c';
-      const lute = group(ball(0.25, '#e6ad62', 1, 1.25, 0.45), at(ball(0.075, '#5a3216', 1, 1, 0.3), 0, 0.03, 0.095), at(box(0.11, 0.5, 0.09, wood), 0, 0.5, 0.02), at(box(0.2, 0.16, 0.1, wood), 0, 0.78, 0.02)); lute.scale.setScalar(1.15);
-      b.put(lute, -50, -26, { out: 0.16, roll: -50 });
+      const lute = group(ball(0.27, '#e6ad62', 1, 1.2, 0.6), at(ball(0.08, '#5a3216', 1, 1, 0.3), 0, 0.02, 0.14), at(pill(0.085, 0.26, wood), 0, 0.48, 0.03), at(ball(0.12, wood), 0, 0.7, 0.03));
+      b.put(lute, -50, -26, { out: 0.04, roll: -50 });
     },
   },
 ];
@@ -479,9 +477,9 @@ const BG = new THREE.Color('#ffffff');
 const scene = new THREE.Scene();
 scene.background = BG;
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.55;
+scene.environmentIntensity = 0.75;
 scene.add(new THREE.HemisphereLight(0xffffff, 0xe8e4f5, 1.1));
-const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
 sun.position.set(-5, 22, 8); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048); sun.shadow.normalBias = 0.04; sun.shadow.radius = 5;
 Object.assign(sun.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: 1, far: 50 });
@@ -634,12 +632,12 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1), t = clock.elapsedTime;
   blobs.forEach((b, i) => {
     // squish spring
-    b.sv += (-90 * b.s - 9 * b.sv) * dt; b.s += b.sv * dt;
-    const breathe = Math.sin(t * 1.8 + b.ph) * 0.018, sy = 1 + b.s * 0.12 + breathe;
+    b.sv += (-70 * b.s - 5 * b.sv) * dt; b.s += b.sv * dt;
+    const breathe = Math.sin(t * 1.8 + b.ph) * 0.025, sy = 1 + b.s * 0.16 + breathe;
     b.vis += ((sel < 0 || i === sel ? 1 : 0) - b.vis) * Math.min(1, dt * 9);   // the others duck out during a close-up
     b.root.visible = b.vis > 0.02;
     b.shade.material.opacity = b.vis * (1 - b.root.position.y * 0.8); b.shade.scale.setScalar(b.vis);
-    b.root.scale.set((1 - (sy - 1) * 0.6) * b.vis, sy * b.vis, (1 - (sy - 1) * 0.6) * b.vis);
+    b.root.scale.set((1 - (sy - 1) * 0.8) * b.vis, sy * b.vis, (1 - (sy - 1) * 0.8) * b.vis);
     // weighted-bean wobble
     b.wv += (-60 * b.w - 3.2 * b.wv) * dt; b.w += b.wv * dt; b.root.rotation.z = b.w * 0.35;
     // hops
