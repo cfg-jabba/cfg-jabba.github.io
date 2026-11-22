@@ -9,35 +9,20 @@ const YA = new V3(0, 1, 0), ZA = new V3(0, 0, 1);
 
 /* ---------- materials & primitive helpers ---------- */
 
-// Each style is a finish (material recipe) plus optional body-shape overrides.
-const STYLES = {
-  squish: { label: 'Squish', fin: { roughness: 0.78, sheen: 1, sheenRoughness: 0.55, sheenColor: new THREE.Color('#ffffff') } },
-  gloss: { label: 'Glossy', fin: { roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12 } },
-  bean: { label: 'Beans', fin: { roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08 }, rock: true,
-    shape: { w: 0.8, d: 0.8, h: 1.2, low: 1, flat: 1, taper: 0, full: 0.42, boxy: 1 } },
-  gummy: { label: 'Gummy', fin: { roughness: 0.14, transmission: 0.9, thickness: 1.4, ior: 1.3, clearcoat: 0.5 } },
-  chrome: { label: 'Chrome', fin: { metalness: 1, roughness: 0.16 } },
-  blank: { label: 'Unpainted', fin: { roughness: 0.7, sheen: 0.6, sheenRoughness: 0.6, sheenColor: new THREE.Color('#ffffff') }, mono: '#e9e4da', noFace: true },
-};
-let STYLE = STYLES.squish, GOLD, STEEL;
+// soft-touch squishy rubber: matte, with a velvety edge glow instead of hard highlights
+const SOFT = { roughness: 0.78, sheen: 1, sheenRoughness: 0.55, sheenColor: new THREE.Color('#ffffff') };
 const matCache = new Map();
 function M(color, o) {
   if (color && color.isMaterial) return color;
-  if (STYLE.mono) color = STYLE.mono;
-  const base = { color, ...STYLE.fin };
+  const base = { color, ...SOFT };
   if (o) return new THREE.MeshPhysicalMaterial({ ...base, ...o });
   if (!matCache.has(color)) matCache.set(color, new THREE.MeshPhysicalMaterial(base));
   return matCache.get(color);
 }
-// printed details keep the same flat ink in every style
+// printed details: flat ink
 const INK = (color, o) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.45, ...o });
 const BLACK = INK('#1d1a2b'), CHEEK = INK('#ff86ad', { roughness: 0.8 }), WHITE = INK('#ffffff');
-function setStyle(key) {
-  STYLE = STYLES[key] || STYLES.squish;
-  matCache.clear();
-  GOLD = M('#ffcc33'); STEEL = M('#c3ccdd', { side: THREE.DoubleSide });
-}
-setStyle(new URLSearchParams(location.search).get('style'));
+const GOLD = M('#ffcc33'), STEEL = M('#c3ccdd', { side: THREE.DoubleSide });
 
 const mesh = (geo, m) => new THREE.Mesh(geo, M(m));
 const ball = (r, c, sx = 1, sy = 1, sz = 1) => { const m = mesh(new THREE.SphereGeometry(r, 28, 20), c); m.scale.set(sx, sy, sz); return m; };
@@ -165,11 +150,11 @@ function paintBody(spec) {
 const rc = new THREE.Raycaster();
 
 function makeBlob(spec) {
-  const s = { ...SHAPE, ...spec.shape, ...STYLE.shape };
+  const s = { ...SHAPE, ...spec.shape };
   const geo = bodyGeo(s);
   const root = new THREE.Group(); root.name = spec.name;
   const g = new THREE.Group(); g.position.y = s.h * s.low; root.add(g);
-  const body = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial(STYLE.mono ? { color: STYLE.mono, ...STYLE.fin } : { map: paintBody(spec), ...STYLE.fin }));
+  const body = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map: paintBody(spec), ...SOFT }));
   g.add(body);
   const probe = new THREE.Mesh(geo);
 
@@ -210,8 +195,7 @@ function makeBlob(spec) {
   };
   spec.build?.(b);
   face(b, spec.face);
-  const mono = STYLE.mono && M(STYLE.mono, { side: THREE.DoubleSide });   // unpainted: one material, no ink at all
-  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (mono) o.material = mono; } });
+  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return root;
 }
 
@@ -236,7 +220,6 @@ function eye(type, es = 1, side = 1) {
 }
 
 function face(b, f = {}) {
-  if (STYLE.noFace) return;
   const { eyes = 'dot', mouth = 'smile', ey = 4, eg = 27, es = 1.55, cheeks = true, my = ey - 6 } = f;
   if (eyes !== 'none') for (const side of [-1, 1]) {
     const type = eyes === 'wink' ? (side < 0 ? 'dot' : 'happy') : eyes;
@@ -251,6 +234,17 @@ function face(b, f = {}) {
 }
 
 /* ---------- the cast ---------- */
+
+const arms = (b, c = b.color, yaw = 64, pitch = -16) => { for (const sd of [-1, 1]) b.put(ball(0.15, c, 1, 1.25, 1), sd * yaw, pitch, { out: 0.02 }); };
+const feet = (b, c = b.color) => { for (const sd of [-1, 1]) b.add(ball(0.2, c, 1.1, 0.55, 1.3), sd * 0.4, b.floor + 0.1, b.s.d * 0.66); };
+const muzzle = (b, c, pitch = 0, nose = BLACK) => b.put(group(ball(0.24, c, 1, 0.75, 0.6), at(ball(0.065, nose, 1.2, 0.8, 0.8), 0, 0.05, 0.13)), 0, pitch, { out: -0.03 });
+function roundEars(b, c, inner) {
+  for (const sd of [-1, 1]) {
+    const ear = group(at(ball(0.27, c, 1, 1, 0.7), 0, 0.17, 0), at(ball(0.16, inner, 1, 1, 0.5), 0, 0.17, 0.12));
+    const { p } = b.surf(sd * 44, 50); ear.rotation.z = -sd * 0.55; b.add(ear, p.x, p.y - 0.08, p.z);
+  }
+}
+const SETS = { dungeon: 'Dungeon', snacks: 'Snacks', critters: 'Critters', cosmic: 'Cosmic', all: 'All 34' };
 
 const CAST = [
   {
@@ -475,6 +469,276 @@ const CAST = [
       b.put(lute, -50, -26, { out: 0.04, roll: -50 });
     },
   },
+  /* ---------- Series 2: Snack Quest ---------- */
+  {
+    set: 'snacks', name: 'Dumplin', cls: 'Soup Monk', color: '#fff1dc', accent: '#f0b56a', stats: [3, 1, 5],
+    shape: { w: 1.1, h: 0.95, d: 1.05, taper: 0.35, low: 0.78 },
+    blurb: 'Full of hot soup and inner peace. Do not squeeze. (Okay, squeeze a little.)',
+    face: { ey: 0 },
+    paint(P) { P.rect(0.5, 0.1, 1, 0.2, '#ffe3b8'); },
+    build(b) {
+      for (let i = 0; i < 8; i++) b.put(ball(0.16, b.color, 0.7, 1.9, 0.7), i * 45 + 10, 62, { roll: 22 });
+      b.put(ball(0.2, b.color, 1, 0.8, 1), 0, 90, { up: true, out: 0.04 });
+      arms(b);
+    },
+  },
+  {
+    set: 'snacks', name: 'Nori', cls: 'Rice Paladin', color: '#f8f4e8', accent: '#2f3b36', stats: [4, 2, 5],
+    shape: { w: 1.05, h: 1.25, d: 0.72, taper: 0.5, low: 0.58 },
+    blurb: 'Wears his seaweed like armor. It is not armor. It is delicious.',
+    face: { ey: 10 },
+    paint(P) { P.rect(0.5, 0.2, 0.2, 0.44, '#2f3b36'); },
+    build(b) { b.put(ball(0.18, '#ff5d6c'), 0, 90, { up: true, out: 0.02 }); arms(b); },
+  },
+  {
+    set: 'snacks', name: 'Flanny', cls: 'Wobble Mage', color: '#ffd873', rarity: 'Rare', stats: [2, 2, 5],
+    shape: { w: 1.0, h: 0.8, d: 1.0, taper: 0.32, low: 0.85, flat: 0.3, full: 0.45 },
+    blurb: 'Casts Jiggle on herself at the start of every fight. And at the end. And at lunch.',
+    face: { ey: -4 },
+    paint(P) {
+      const { ctx } = P; ctx.fillStyle = '#a9591f'; ctx.beginPath(); ctx.moveTo(0, 0);
+      for (let x = 0; x <= P.W; x += 8) ctx.lineTo(x, P.Y(0.7 + 0.06 * Math.sin(x / P.W * TAU * 7)));
+      ctx.lineTo(P.W, 0); ctx.fill();
+    },
+    build(b) {
+      b.put(ball(0.32, '#fffaf0', 1, 0.55, 1), 0, 90, { up: true, out: 0.03 });
+      b.add(ball(0.17, '#ff4d6d'), 0, b.s.h + 0.28, 0);
+    },
+  },
+  {
+    set: 'snacks', name: 'Boba Bo', cls: 'Tea Alchemist', color: '#d6aa7c', stats: [3, 3, 5],
+    shape: { w: 0.88, h: 1.1, d: 0.88, taper: -0.14, low: 0.8, flat: 0.3, full: 0.4 },
+    blurb: 'Brews potions. They are all milk tea. Nobody has complained.',
+    face: { ey: 16 },
+    paint(P) { for (let i = 0; i < 26; i++) P.ell((i * 0.0773 + 0.03) % 1, 0.2 + (i * 37 % 10) * 0.024, 0.017, 0.034, '#4a2c1a'); },
+    build(b) {
+      b.cap(0.8, '#f4f8ff', 1.04); b.ring(0.8, '#ff8fb5', 0.07, 1.05);
+      const straw = cyl(0.12, 0.12, 0.9, '#ff8fb5'); straw.rotation.z = -0.3;
+      b.add(straw, 0.2, b.s.h + 0.2, -0.05);
+    },
+  },
+  {
+    set: 'snacks', name: 'Toasty', cls: 'Breakfast Knight', color: '#c98b4d', accent: '#c98b4d', stats: [4, 2, 5],
+    shape: { w: 1.0, h: 1.05, d: 0.52, boxy: 0.5, taper: 0, low: 0.8, flat: 0.3, full: 0.45 },
+    blurb: 'Always lands butter side up. This is his only power and he is very proud of it.',
+    face: { ey: -4, eg: 24 },
+    paint(P) { for (const u of [0, 0.5, 1]) P.ell(u, 0.5, 0.115, 0.37, '#f8e3b4'); },
+    build(b) { b.put(box(0.34, 0.26, 0.14, '#ffe26a'), 0, 34, { roll: 12 }); arms(b, b.color, 80, -20); },
+  },
+  {
+    set: 'snacks', name: 'Berry', cls: 'Berry Bard', color: '#ff5470', stats: [2, 2, 5],
+    shape: { taper: 0.3 },
+    blurb: 'Sweet voice, tiny seeds, enormous opinions about jam.',
+    face: { ey: 2 },
+    paint(P) { for (let i = 0; i < 80; i++) { const u = (i * 0.618) % 1, v = 0.22 + (i * 0.377 % 1) * 0.58; if (Math.abs(u - 0.5) < 0.15 && v > 0.36 && v < 0.64) continue; P.ell(u, v, 0.008, 0.022, '#ffe08a'); } },
+    build(b) {
+      const crown = group(at(pill(0.1, 0.14, '#3da34a'), 0, 0.14, 0));
+      for (let i = 0; i < 6; i++) { const l = horn(0.22, 0.6, 1.0, '#4fbf5a', { pow: 0.4, tip: 0.7 }); l.scale.z = 0.8; l.rotation.set(0, i / 6 * TAU, -1.0); crown.add(l); }
+      b.add(crown, 0, b.s.h * 0.9, 0);
+      arms(b);
+    },
+  },
+  {
+    set: 'snacks', name: 'Swirl', cls: 'Frosting Cleric', color: '#8fd3ff', rarity: 'Rare', stats: [3, 1, 5],
+    shape: { w: 0.95, h: 0.85, d: 0.95, taper: -0.1, low: 0.95, flat: 0.3, full: 0.4 },
+    blurb: 'Heals all wounds with sprinkles. Scientifically dubious. Emotionally effective.',
+    face: { ey: -14 },
+    paint(P) { for (let i = 0; i < 16; i += 2) P.rect((i + 0.5) / 16, 0.3, 1 / 16, 0.6, '#6fbfee'); },
+    build(b) {
+      const frost = '#ffc2d9', y = b.s.h * 0.55;
+      b.add(ball(1.0, frost, 1, 0.42, 1), 0, y, 0); b.add(ball(0.76, frost, 1, 0.45, 1), 0, y + 0.32, 0);
+      b.add(ball(0.5, frost, 1, 0.5, 1), 0, y + 0.6, 0); b.add(ball(0.27, frost, 1, 0.8, 1), 0, y + 0.84, 0);
+      b.add(ball(0.18, '#ff3d5e'), 0, y + 1.06, 0);
+    },
+  },
+  {
+    set: 'snacks', name: 'Nigi', cls: 'Sushi Samurai', color: '#f8f4e8', accent: '#ff9a70', stats: [3, 4, 5],
+    shape: { w: 1.2, h: 0.6, d: 0.8, boxy: 0.6, low: 1.0, flat: 0.3, full: 0.45, taper: 0.1 },
+    blurb: 'Honor. Discipline. A cozy salmon blanket.',
+    face: { ey: -10, es: 1.25, eg: 22 },
+    build(b) {
+      b.cap(0.6, '#ff9a70', 1.07);
+      for (const x of [-0.55, 0, 0.55]) { const p = pill(0.075, 0.5, '#ffd9c7'); p.rotation.set(Math.PI / 2, 0.5, 0); b.add(p, x, b.s.h * (x ? 0.93 : 1.03), 0); }
+    },
+  },
+
+  /* ---------- Series 3: Critter Club ---------- */
+  {
+    set: 'critters', name: 'Mochi', cls: 'Nap Champion', color: '#ffb14a', belly: '#fff3d6', stats: [3, 3, 5],
+    blurb: 'Knocks exactly one thing off every table she meets. Maintains eye contact throughout.',
+    face: { mouth: 'w', my: -5 },
+    under(P) {
+      for (const [u, h] of [[0.5, 0.13], [0.462, 0.1], [0.538, 0.1]]) P.rect(u, 0.83, 0.018, h, '#f08a24');
+      for (const u of [0.28, 0.72]) for (let k = 0; k < 3; k++) P.rect(u, 0.38 + k * 0.1, 0.08, 0.035, '#f08a24');
+    },
+    build(b) {
+      for (const sd of [-1, 1]) {
+        const ear = group(horn(0.3, 0.42, 0, b.color, { pow: 0.7, tip: 0.4 }), at(horn(0.17, 0.28, 0, '#ff8fa8', { pow: 0.7, tip: 0.4 }), 0, 0.03, 0.13));
+        ear.scale.z = 0.6; b.put(ear, sd * 36, 60, { up: true, out: -0.1 });
+      }
+      b.put(ball(0.05, '#ff7f9c', 1.2, 0.8, 0.8), 0, 0, { out: 0.01 });
+      const tail = horn(0.22, 0.9, 1.9, b.color, { pow: 0.4, tip: 0.7 }); tail.scale.x = -1; tail.rotation.z = -Math.PI / 2; tail.rotation.y = 0.35;
+      b.add(tail, 0.5, b.floor + 0.3, -0.42);
+      arms(b); feet(b);
+    },
+  },
+  {
+    set: 'critters', name: 'Flopsy', cls: 'Hop Scout', color: '#ffc4dc', belly: '#fff4f9', stats: [2, 2, 5],
+    blurb: 'One ear up for danger, one ear down for vibes.',
+    face: { mouth: 'w', my: -5 },
+    build(b) {
+      const earL = group(pill(0.19, 0.6, b.color), at(pill(0.1, 0.42, '#ff8fb5'), 0, 0, 0.13)); earL.scale.z = 0.65; earL.rotation.z = 0.12;
+      b.add(earL, -0.3, b.s.h + 0.3, -0.05);
+      const earR = horn(0.21, 1.0, 1.9, b.color, { pow: 0.15, tip: 0.85 }); earR.scale.z = 0.65; earR.rotation.z = -0.1;
+      b.add(earR, 0.3, b.s.h * 0.8, -0.05);
+      b.put(ball(0.05, '#ff7f9c', 1.2, 0.8, 0.8), 0, 0, { out: 0.01 });
+      b.put(ball(0.22, '#ffffff'), 180, -35, { out: 0.08 });
+      arms(b); feet(b);
+    },
+  },
+  {
+    set: 'critters', name: 'Bruno', cls: 'Honey Guard', color: '#b98a5e', belly: '#f3dcb8', stats: [5, 3, 5],
+    blurb: 'Guards the honey. Has also eaten the honey. Investigation ongoing.',
+    face: { mouth: 'none', ey: 8 },
+    build(b) { roundEars(b, b.color, '#f3dcb8'); muzzle(b, '#f3dcb8', -3); arms(b); feet(b); },
+  },
+  {
+    set: 'critters', name: 'Pip', cls: 'Ice Slider', color: '#44568a', rarity: 'Rare', stats: [3, 2, 5],
+    blurb: 'Formally dressed for every occasion, including belly-sliding into your stuff.',
+    face: { ey: 6, mouth: 'none', eg: 22 },
+    paint(P) { P.ell(0.5, 0.28, 0.125, 0.3, '#ffffff'); P.ell(0.5 - 0.062, 0.55, 0.07, 0.1, '#ffffff'); P.ell(0.5 + 0.062, 0.55, 0.07, 0.1, '#ffffff'); },
+    build(b) {
+      b.put(ball(0.12, '#ffa53d', 1.2, 0.7, 1), 0, -2, { out: 0.02 });
+      for (const sd of [-1, 1]) { const f = ball(0.22, b.color, 0.55, 1.5, 1); b.put(f, sd * 74, -8); f.rotateZ(-sd * 0.3); }
+      feet(b, '#ffa53d');
+    },
+  },
+  {
+    set: 'critters', name: 'Lottie', cls: 'Pond Princess', color: '#ffb3cb', belly: '#ffe6ee', rarity: 'Ultra Rare', stats: [2, 1, 5],
+    blurb: 'Regrows a lost limb in a week. Regrows a lost snack never. Guard your snacks.',
+    face: { eg: 31, mouth: 'wide', ey: 6, my: 0 },
+    build(b) {
+      for (const sd of [-1, 1]) for (const [yaw, p] of [[56, 42], [68, 26], [76, 9]]) b.put(horn(0.12, 0.4, 0, '#ff6f9c', { pow: 0.3, tip: 0.8 }), sd * yaw, p, { up: true, out: -0.06 });
+      const tail = horn(0.26, 0.8, 0.8, b.color, { pow: 0.5, tip: 0.6 }); tail.scale.x = -1; tail.rotation.z = -Math.PI / 2; tail.rotation.y = 0.5;
+      b.add(tail, 0.5, b.floor + 0.3, -0.5);
+      arms(b); feet(b);
+    },
+  },
+  {
+    set: 'critters', name: 'Bumble', cls: 'Pollen Courier', color: '#ffd43b', stats: [1, 3, 5],
+    blurb: 'Aerodynamically should not fly. Has not been told. Please do not tell him.',
+    under(P) { P.rect(0.5, 0.33, 1, 0.1, '#3a2f2a'); P.rect(0.5, 0.77, 1, 0.1, '#3a2f2a'); },
+    build(b) {
+      const dark = '#3a2f2a';
+      for (const sd of [-1, 1]) {
+        b.put(group(horn(0.1, 0.3, 0, dark, { pow: 0.2, tip: 0.8 }), at(ball(0.13, dark), 0, 0.32, 0)), sd * 24, 70, { up: true, out: -0.05 });
+        const w = ball(0.36, '#dff3ff', 1, 1.25, 0.42); w.rotation.set(0, sd * 0.5, -sd * 0.5);
+        b.add(w, sd * 0.66, 0.6, -0.4);
+      }
+      b.put(horn(0.16, 0.3, 0, dark, { pow: 0.7, tip: 0.4 }), 180, -25, { up: true, out: -0.05 });
+      arms(b, dark);
+    },
+  },
+  {
+    set: 'critters', name: 'Sprinkle', cls: 'Rainbow Steed', color: '#efe6ff', belly: '#ffffff', accent: '#b79cf2', rarity: 'Ultra Rare', stats: [3, 3, 5],
+    blurb: 'Leaves a trail of glitter everywhere. Blames the wizard.',
+    face: { ey: 12, mouth: 'none' },
+    build(b) {
+      b.put(horn(0.17, 0.6, 0, GOLD, { pow: 0.8, tip: 0.3 }), 0, 72, { up: true, out: -0.05 });
+      for (const sd of [-1, 1]) b.put(horn(0.17, 0.28, 0, b.color, { pow: 0.7, tip: 0.4 }), sd * 40, 60, { up: true, out: -0.05 });
+      muzzle(b, '#ffc9de', 0, '#e77aa5');
+      const rb = ['#ff6f91', '#ffb347', '#ffe066', '#7ddc7a', '#6fc8ff', '#b79cf2'];
+      rb.forEach((c, i) => b.put(ball(0.21, c), 180, 84 - i * 18, { out: 0.06 }));
+      b.put(ball(0.19, rb[0]), 22, 80, { out: 0.05 }); b.put(ball(0.16, rb[1]), 34, 68, { out: 0.04 });
+      rb.slice(3).forEach((c, i) => b.add(ball(0.2, c), 0.62 + i * 0.16, b.floor + 0.22 + i * 0.17, -0.45));
+      feet(b);
+    },
+  },
+  {
+    set: 'critters', name: 'Chomps', cls: 'Reef Bruiser', color: '#6fa3c7', stats: [4, 5, 5],
+    blurb: 'Terror of the deep end. Wears floaties in the shallow end.',
+    face: { ey: 10, mouth: 'wide', my: 1, eg: 29 },
+    paint(P) { P.ell(0.5, 0.22, 0.16, 0.26, '#ffffff'); for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) P.rect(0.5 + sd * (0.21 + 0.022 * k), 0.44, 0.008, 0.09, '#4f86ac'); },
+    build(b) {
+      const fin = horn(0.34, 0.6, 0.7, b.color, { pow: 0.6, tip: 0.4 }); fin.scale.z = 0.5;
+      b.put(fin, 0, 90, { up: true, out: -0.12 }); fin.rotateY(Math.PI / 2);
+      for (const yaw of [-14, -5, 5, 14]) b.put(ball(0.075, '#ffffff', 1, 1.3, 0.8), yaw, -7);
+      for (const sd of [-1, 1]) { const f = ball(0.22, b.color, 0.55, 1.5, 1); b.put(f, sd * 74, -8); f.rotateZ(-sd * 0.5); }
+      b.put(ball(0.32, b.color, 0.5, 1.4, 1), 180, -15, { out: 0.16 });
+    },
+  },
+
+  /* ---------- Series 4: Cosmic Crew ---------- */
+  {
+    set: 'cosmic', name: 'Zorp', cls: 'Space Tourist', color: '#7fe0c8', belly: '#dcfff5', stats: [2, 3, 5],
+    blurb: 'Came 40 light-years for the snacks. Three eyes, all of them on your fries.',
+    face: { eyes: 'none', mouth: 'o', ey: 6, my: -5 },
+    build(b) {
+      for (const [yaw, p, es] of [[-25, 4, 1.4], [25, 4, 1.4], [0, 25, 1.75]]) { const e = eye('dot', es); e.scale.z = 0.4; b.put(e, yaw, p); }
+      for (const sd of [-1, 1]) b.put(group(horn(0.1, 0.34, 0, b.color, { pow: 0.2, tip: 0.8 }), at(ball(0.15, '#ff8fb5'), 0, 0.37, 0)), sd * 30, 66, { up: true, out: -0.05 });
+      arms(b); feet(b);
+    },
+  },
+  {
+    set: 'cosmic', name: 'Bolt', cls: 'Helper Bot', color: '#a9bdd1', stats: [4, 3, 5],
+    shape: { w: 0.95, h: 1.05, d: 0.85, boxy: 0.5, flat: 0.3, low: 0.85, taper: 0.05, full: 0.5 },
+    blurb: 'Programmed to assist. Mostly assists by beeping encouragingly.',
+    face: { ey: 15, eg: 15, my: 8, es: 1.3 },
+    paint(P) {
+      const { ctx } = P; ctx.fillStyle = '#e6f6ff'; ctx.beginPath(); ctx.roundRect(P.X(0.385), P.Y(0.8), 0.23 * P.W, 0.3 * P.H, 40); ctx.fill();
+      P.ell(0.465, 0.4, 0.013, 0.026, '#ff5d6c'); P.ell(0.5, 0.4, 0.013, 0.026, '#ffd93b'); P.ell(0.535, 0.4, 0.013, 0.026, '#5fe08a');
+      P.rect(0.5, 0.32, 0.08, 0.035, '#7d93aa');
+    },
+    build(b) {
+      const dk = '#7d93aa';
+      b.add(pill(0.09, 0.16, dk), 0, b.s.h + 0.08, 0); b.add(ball(0.16, '#ff5d6c'), 0, b.s.h + 0.32, 0);
+      for (const sd of [-1, 1]) { const bolt = cyl(0.18, 0.18, 0.18, dk); bolt.rotation.x = Math.PI / 2; b.put(group(bolt), sd * 90, 12, { out: 0.03 }); }
+      arms(b, dk, 76, -22); feet(b, dk);
+    },
+  },
+  {
+    set: 'cosmic', name: 'Saturnia', cls: 'Ring Bearer', color: '#ffb86b', rarity: 'Rare', stats: [5, 2, 5],
+    shape: { w: 1, h: 0.95, d: 1, taper: 0, low: 0.9, flat: 0.7, full: 1 },
+    blurb: 'Has the fanciest hula hoop in the solar system and will not let anyone else try it.',
+    face: { ey: 10 },
+    paint(P) { P.rect(0.5, 0.8, 1, 0.07, '#ffd29a'); P.rect(0.5, 0.3, 1, 0.09, '#f79c4a'); P.rect(0.5, 0.16, 1, 0.05, '#ffd29a'); P.ell(0.68, 0.64, 0.03, 0.035, '#f2794a'); },
+    build(b) { const ring = torus(1.3, 0.13, '#ffe6b0'); ring.rotation.set(Math.PI / 2 + 0.22, 0.2, 0); b.add(ring, 0, -0.12, 0); },
+  },
+  {
+    set: 'cosmic', name: 'Luna', cls: 'Night Shift', color: '#ffe9a3', accent: '#6f8cff', stats: [3, 1, 5],
+    blurb: 'Works nights. Would like everyone to know she is very tired.',
+    face: { eyes: 'sleepy', ey: 2 },
+    under(P) { for (const [u, v, r] of [[0.25, 0.6, 0.03], [0.75, 0.35, 0.035], [0.68, 0.7, 0.02], [0.33, 0.25, 0.025], [0.9, 0.6, 0.03], [0.1, 0.4, 0.028]]) P.ell(u, v, r, r * 1.7, '#f3d37c'); },
+    build(b) {
+      const band = torus(0.56, 0.11, '#ffffff'); band.rotation.x = Math.PI / 2;
+      const hat = group(horn(0.6, 0.95, 1.7, '#6f8cff', { pow: 0.6, tip: 0.3 }), at(band, 0.02, 0.08, 0), at(ball(0.18, '#ffffff'), 0.6, 0.52, 0));
+      hat.rotation.set(-0.1, 0.4, -0.15);
+      b.add(hat, 0, b.s.h * 0.78, 0);
+      arms(b);
+    },
+  },
+  {
+    set: 'cosmic', name: 'Twinkle', cls: 'Wish Granter', color: '#ffd84d', rarity: 'Ultra Rare', stats: [1, 4, 5],
+    shape: { w: 0.9, h: 0.95, d: 0.75, low: 0.85, flat: 0.5, taper: 0.1 },
+    blurb: 'Grants one wish per customer. The wish is always more Doods.',
+    face: { eyes: 'happy', ey: 0, eg: 24 },
+    build(b) {
+      for (const a of [0, 72, -72, 128, -128]) {
+        const n = horn(0.44, 0.72, 0, b.color, { pow: 0.6, tip: 0.4 }), r = a * D; n.scale.z = 0.8; n.rotation.z = -r;
+        b.add(n, Math.sin(r) * 0.52, Math.cos(r) * 0.55 + 0.1, 0);
+      }
+    },
+  },
+  {
+    set: 'cosmic', name: 'Nimbus', cls: 'Weather Intern', color: '#dbe9ff', accent: '#6fc8ff', stats: [2, 2, 5],
+    shape: { w: 1.15, h: 0.75, d: 0.9, low: 0.85, flat: 0.4, taper: 0.1 },
+    blurb: 'Rains only when embarrassed. Rains a lot.',
+    face: { ey: -6 },
+    build(b) {
+      for (const [x, y, z, r] of [[-0.75, 0.35, 0, 0.5], [0.7, 0.3, 0.05, 0.52], [0, 0.7, -0.05, 0.6], [-0.4, 0.62, 0.1, 0.48], [0.42, 0.6, 0.1, 0.46], [-1.0, -0.15, 0, 0.4], [1.0, -0.2, 0, 0.42], [0, 0.3, -0.6, 0.6]])
+        b.add(ball(r, b.color), x, y, z);
+    },
+  },
 ];
 
 /* ---------- scene ---------- */
@@ -496,8 +760,8 @@ scene.environmentIntensity = 0.75;
 scene.add(new THREE.HemisphereLight(0xffffff, 0xe8e4f5, 1.1));
 const sun = new THREE.DirectionalLight(0xffffff, 1.5);
 sun.position.set(-5, 22, 8); sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048); sun.shadow.normalBias = 0.04; sun.shadow.radius = 5;
-Object.assign(sun.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: 1, far: 50 });
+sun.shadow.mapSize.set(4096, 4096); sun.shadow.normalBias = 0.04; sun.shadow.radius = 5;
+Object.assign(sun.shadow.camera, { left: -17, right: 17, top: 17, bottom: -17, near: 1, far: 60 });
 scene.add(sun);
 
 // white studio floor that only shows soft shadows
@@ -527,36 +791,27 @@ const blobs = CAST.map((spec, i) => {
   return { spec, root, proxy, shade, home: new V3(), yaw: (Math.sin(i * 12.9898) * 43758.5453 % 1) * 0.3, s: 0, sv: 0, w: 0, wv: 0, vis: 1, hop: -1, nextHop: 2 + Math.random() * 8, ph: Math.random() * 10, wisp: root.getObjectByName('wisp') };
 });
 
-function restyle(key) {
-  setStyle(key);
-  for (const b of blobs) {
-    b.root.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.map?.dispose(); o.material.dispose(); } });
-    scene.remove(b.root);
-    const root = makeBlob(b.spec); root.position.copy(b.root.position); root.rotation.copy(b.root.rotation);
-    scene.add(root); b.root = root; b.sv = -4;
-  }
-  document.querySelectorAll('#styles button').forEach(el => el.classList.toggle('on', STYLES[el.dataset.k] === STYLE));
-}
-
 /* ---------- layout & camera ---------- */
 
-let sel = -1, flying = true, bounds = { hx: 1, hz: 1 };
+let sel = -1, flying = true, bounds = { hx: 1, hz: 1 }, setKey = 'dungeon';
+const inSet = b => setKey === 'all' || (b.spec.set || 'dungeon') === setKey, shown = () => blobs.filter(inSet);
 const goal = { pos: new V3(), target: new V3() };
 const portrait = () => innerWidth / innerHeight < 0.85;
 
 function layout() {
-  const asp = innerWidth / innerHeight, cols = asp < 0.85 ? 3 : asp < 1.9 ? 4 : 6, rows = Math.ceil(blobs.length / cols);
-  blobs.forEach((b, i) => {
-    const r = Math.floor(i / cols), c = i % cols;
-    b.home.set((c - (cols - 1) / 2) * 2.9 + (r % 2 ? 0.35 : -0.35), 0, (r - (rows - 1) / 2) * 3.1);
+  const list = shown(), n = list.length, asp = innerWidth / innerHeight;
+  const cols = n === 12 ? (asp < 0.85 ? 3 : asp < 1.9 ? 4 : 6) : Math.max(3, Math.round(Math.sqrt(n * asp * 0.9))), rows = Math.ceil(n / cols);
+  list.forEach((b, k) => {
+    const r = Math.floor(k / cols), c = k % cols, inRow = r < rows - 1 ? cols : n - cols * (rows - 1);
+    b.home.set((c - (inRow - 1) / 2) * 2.9 + (r % 2 ? 0.35 : -0.35), 0, (r - (rows - 1) / 2) * 3.1);
     b.root.position.copy(b.home); b.proxy.position.set(b.home.x, 1.2, b.home.z); b.shade.position.set(b.home.x, 0.012, b.home.z);
   });
-  bounds = { hx: (cols - 1) / 2 * 2.9 + 1.5, hz: (rows - 1) / 2 * 3.1 + 1.2 };
+  bounds = { hx: (Math.min(cols, n) - 1) / 2 * 2.9 + 1.5, hz: (rows - 1) / 2 * 3.1 + 1.2 };
 }
 
 function overview() {
   const el = (portrait() ? 54 : 44) * D, dir = new V3(0, Math.sin(el), Math.cos(el)), target = new V3(0, 0.8, 0);
-  const pts = []; for (const x of [-1, 1]) for (const z of [-1, 1]) for (const y of [0, 2.6]) pts.push(new V3(x * bounds.hx, y, z * bounds.hz));
+  const pts = []; for (const x of [-1, 1]) for (const z of [-1, 1]) for (const y of [0, 3.1]) pts.push(new V3(x * bounds.hx, y, z * bounds.hz));
   const top = 1 - 2 * (innerWidth < 1100 ? document.querySelector('header').offsetHeight + 56 : 84) / innerHeight, bot = -1 + 2 * 96 / innerHeight;
   const cam = camera.clone(); let lo = 4, hi = 160;
   for (let k = 0; k < 24; k++) {
@@ -592,9 +847,10 @@ camera.position.copy(goal.pos).addScaledVector(new V3(0, 0.4, 1), 6); controls.t
 /* ---------- UI ---------- */
 
 const $ = s => document.querySelector(s), card = $('#card'), foot = $('#foot');
-for (const [k, st] of Object.entries(STYLES)) {
-  const el = document.createElement('button'); el.textContent = st.label; el.dataset.k = k; el.classList.toggle('on', st === STYLE);
-  el.onclick = () => restyle(k); $('#styles').append(el);
+for (const [k, label] of Object.entries(SETS)) {
+  const el = document.createElement('button'); el.textContent = label; el.dataset.k = k; el.classList.toggle('on', k === setKey);
+  el.onclick = () => { setKey = k; document.querySelectorAll('#styles button').forEach(x => x.classList.toggle('on', x === el)); sel = -1; layout(); select(-1); };
+  $('#styles').append(el);
 }
 function select(i) {
   sel = i;
@@ -602,10 +858,10 @@ function select(i) {
   foot.style.opacity = i >= 0 ? 0 : 1; foot.style.visibility = i >= 0 ? 'hidden' : 'visible';
   if (i >= 0) {
     const { spec } = blobs[i];
-    card.querySelector('.no').textContent = `#${String(i + 1).padStart(2, '0')} · ${spec.cls} · ${RARITY[i]}`;
+    card.querySelector('.no').textContent = `#${String(i + 1).padStart(2, '0')} · ${spec.cls} · ${spec.rarity || RARITY[i] || 'Common'}`;
     card.querySelector('h2').textContent = spec.name;
     card.querySelector('p').textContent = spec.blurb;
-    const accent = { '#f1eeff': '#4fd69c', '#e4e9ff': '#6fc8ff', '#fff0d4': '#f2545b', '#ffd9e4': '#ff5d8f' }[spec.color] || spec.color;
+    const accent = spec.accent || { '#f1eeff': '#4fd69c', '#e4e9ff': '#6fc8ff', '#fff0d4': '#f2545b', '#ffd9e4': '#ff5d8f' }[spec.color] || spec.color;
     card.querySelector('.stats').innerHTML = ['HP', 'ATK', 'CUTE'].map((k, j) =>
       `<span>${k}</span><span class="pips" style="--c:${accent}">${[0, 1, 2, 3, 4].map(n => `<i class="${n < spec.stats[j] ? 'f' : ''}"></i>`).join('')}</span>`).join('');
     blobs[i].sv = -4; blobs[i].hop = 0; blobs[i].wv = 2.5;
@@ -613,8 +869,9 @@ function select(i) {
   refocus();
 }
 $('#x').onclick = () => select(-1);
-$('#prev').onclick = () => select((sel + blobs.length - 1) % blobs.length);
-$('#next').onclick = () => select((sel + 1) % blobs.length);
+const step = d => { const l = shown(), k = l.indexOf(blobs[sel]); select(blobs.indexOf(l[(k + d + l.length) % l.length])); };
+$('#prev').onclick = () => step(-1);
+$('#next').onclick = () => step(1);
 addEventListener('keydown', e => {
   if (e.key === 'Escape') select(-1);
   if (sel >= 0 && e.key === 'ArrowLeft') $('#prev').onclick();
@@ -625,7 +882,7 @@ const ptr = new THREE.Vector2(), down = { x: 0, y: 0, ok: false };
 function pick(e) {
   ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   rc.setFromCamera(ptr, camera);
-  const hit = rc.intersectObjects(blobs.filter((b, i) => sel < 0 || i === sel).map(b => b.proxy), false)[0];
+  const hit = rc.intersectObjects(blobs.filter((b, i) => inSet(b) && (sel < 0 || i === sel)).map(b => b.proxy), false)[0];
   return hit ? hit.object.userData.i : -1;
 }
 canvas.addEventListener('pointerdown', e => { down.x = e.clientX; down.y = e.clientY; down.ok = true; });
@@ -651,9 +908,9 @@ async function download(list, filename) {
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-$('#glb').onclick = () => sel >= 0 && download([blobs[sel]], `${slug(blobs[sel].spec.name)}-${slug(STYLE.label)}.glb`);
-$('#all').onclick = () => download(blobs, `doods-series-1-${slug(STYLE.label)}.glb`);
-window.__doods = { blobs, select, download, restyle, snap(i) { select(i); camera.position.copy(goal.pos); controls.target.copy(goal.target); blobs.forEach((b, k) => { b.vis = k === i ? 1 : 0; b.root.rotation.y = 0; }); } };
+$('#glb').onclick = () => sel >= 0 && download([blobs[sel]], `${slug(blobs[sel].spec.name)}.glb`);
+$('#all').onclick = () => download(shown(), `doods-${setKey}.glb`);
+window.__doods = { blobs, select, download, snap(i) { select(i); camera.position.copy(goal.pos); controls.target.copy(goal.target); blobs.forEach((b, k) => { b.vis = k === i ? 1 : 0; b.root.rotation.y = 0; }); }, setSet(k) { document.querySelector(`#styles button[data-k=${k}]`).click(); } };
 
 /* ---------- animate ---------- */
 
@@ -664,15 +921,14 @@ renderer.setAnimationLoop(() => {
     // squish spring
     b.sv += (-70 * b.s - 5 * b.sv) * dt; b.s += b.sv * dt;
     const breathe = Math.sin(t * 1.8 + b.ph) * 0.025, sy = 1 + b.s * 0.16 + breathe;
-    b.vis += ((sel < 0 || i === sel ? 1 : 0) - b.vis) * Math.min(1, dt * 9);   // the others duck out during a close-up
+    b.vis += ((inSet(b) && (sel < 0 || i === sel) ? 1 : 0) - b.vis) * Math.min(1, dt * 9);   // the others duck out during a close-up
     b.root.visible = b.vis > 0.02;
     b.shade.material.opacity = b.vis * (1 - b.root.position.y * 0.8); b.shade.scale.setScalar(b.vis);
     b.root.scale.set((1 - (sy - 1) * 0.8) * b.vis, sy * b.vis, (1 - (sy - 1) * 0.8) * b.vis);
     // weighted-bean wobble
-    b.wv += (-60 * b.w - 3.2 * b.wv) * dt; b.w += b.wv * dt; b.root.rotation.z = b.w * 0.35 + (STYLE.rock ? Math.sin(t * 1.7 + b.ph) * 0.09 : 0);
-    b.root.rotation.x = STYLE.rock ? Math.cos(t * 1.3 + b.ph * 2) * 0.06 : 0;
+    b.wv += (-60 * b.w - 3.2 * b.wv) * dt; b.w += b.wv * dt; b.root.rotation.z = b.w * 0.35;
     // hops
-    if (b.hop < 0 && sel < 0 && (b.nextHop -= dt) < 0) { b.hop = 0; b.sv = -3; }
+    if (b.hop < 0 && sel < 0 && inSet(b) && (b.nextHop -= dt) < 0) { b.hop = 0; b.sv = -3; }
     if (b.hop >= 0) {
       b.hop += dt / 0.55;
       if (b.hop >= 1) { b.hop = -1; b.nextHop = 4 + Math.random() * 9; b.sv = -5; b.root.position.y = 0; }
