@@ -4,6 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { makeBlob, compile, BESPOKE, D, TAU, V3 } from './engine.js';
 import { THEMES } from './themes.js';
+import { BRAND, FONT as bfont, drawLogo, pill, burst, pattern, blobPath } from './brand.js';
 
 const $ = s => document.querySelector(s);
 const PER = 15;
@@ -120,80 +121,71 @@ function bagGeo(y0, y1, zig) {
 }
 const bagMainGeo = bagGeo(-1, TEAR, true), bagStripGeo = bagGeo(TEAR, 1, true);
 
-const FONT = '700 %px Fredoka, ui-rounded, "Arial Rounded MT Bold", system-ui, sans-serif';
-function label(ctx, text, x, y, px, fill, stroke = '#3a1560', maxW) {
-  ctx.font = FONT.replace('%', px); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
-  if (maxW) { const w = ctx.measureText(text).width; if (w > maxW) { px *= maxW / w; ctx.font = FONT.replace('%', px); } }
+function label(ctx, text, x, y, px, fill, stroke = BRAND.ink, maxW) {
+  ctx.font = bfont(px); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  if (maxW) { const w = ctx.measureText(text).width; if (w > maxW) { px *= maxW / w; ctx.font = bfont(px); } }
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = px * 0.22; ctx.strokeText(text, x, y); }
   ctx.fillStyle = fill; ctx.fillText(text, x, y);
 }
-function logo(ctx, x, y, px) {
-  const cols = ['#ff5fa8', '#39c5ff', '#7ddc4a', '#39c5ff', '#ff5fa8', '#7ddc4a'], word = 'DOODS!';
-  ctx.save(); ctx.translate(x, y); ctx.transform(1, -0.06, -0.14, 1, 0, 0);
-  ctx.font = FONT.replace('%', px); const w = ctx.measureText(word).width; let cx = -w / 2;
-  for (let i = 0; i < word.length; i++) {
-    const cw = ctx.measureText(word[i]).width;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#3a1560'; ctx.lineWidth = px * 0.26; ctx.strokeText(word[i], cx, 0);
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = px * 0.1; ctx.strokeText(word[i], cx, 0);
-    ctx.fillStyle = cols[i]; ctx.fillText(word[i], cx, 0); cx += cw;
-  }
+function tex(cv) { const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
+function backdrop(ctx, W, H, th, seed) {
+  const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, th.bag[0]); g.addColorStop(1, th.bag[1]); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const glow = ctx.createRadialGradient(W / 2, H * 0.32, 0, W / 2, H * 0.32, W * 0.75); glow.addColorStop(0, 'rgba(255,255,255,.38)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+  pattern(ctx, W, H, seed);
+}
+// the theme name on a tilted ink ribbon with notched ends
+function ribbon(ctx, text, cx, cy, w, h) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.045);
+  ctx.fillStyle = 'rgba(58,21,96,.25)'; ctx.fillRect(-w / 2 + 6, -h / 2 + 8, w, h);
+  ctx.fillStyle = BRAND.ink; ctx.beginPath(); ctx.moveTo(-w / 2, -h / 2); ctx.lineTo(w / 2, -h / 2); ctx.lineTo(w / 2 - h * 0.3, 0); ctx.lineTo(w / 2, h / 2); ctx.lineTo(-w / 2, h / 2); ctx.lineTo(-w / 2 + h * 0.3, 0); ctx.closePath(); ctx.fill();
+  label(ctx, text.toUpperCase(), 0, h * 0.04, h * 0.58, BRAND.yellow, null, w - h * 1.3);
   ctx.restore();
 }
-function blobPath(ctx, x, y, r) { ctx.beginPath(); ctx.ellipse(x, y - r * 0.05, r * 0.8, r, 0, Math.PI, 0); ctx.ellipse(x, y - r * 0.05, r * 0.8, r * 0.72, 0, 0, Math.PI); ctx.closePath(); }
-function sparkles(ctx, W, H, n, seed) {
-  ctx.fillStyle = 'rgba(255,255,255,.5)';
-  for (let i = 0; i < n; i++) {
-    const x = (Math.sin(i * 127.1 + seed) * 43758.5 % 1 + 1) % 1 * W, y = (Math.sin(i * 311.7 + seed) * 43758.5 % 1 + 1) % 1 * H, r = 5 + i % 4 * 4;
-    ctx.beginPath(); for (let k = 0; k < 8; k++) { const a = k / 8 * TAU, rr = k % 2 ? r * 0.3 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.fill();
-  }
-}
-function tex(cv) { const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
 
 function bagTexture(th, ti) {
   const W = 512, H = 742, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-  const ctx = cv.getContext('2d'), g = ctx.createLinearGradient(0, 0, W, H);
-  g.addColorStop(0, th.bag[0]); g.addColorStop(1, th.bag[1]); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  sparkles(ctx, W, H, 26, ti);
-  const crimp = H * (1 - TEAR) / 2;
+  const ctx = cv.getContext('2d'), crimp = H * (1 - TEAR) / 2, no = String(ti + 1).padStart(2, '0');
+  backdrop(ctx, W, H, th, ti);
   for (const y0 of [0, H - crimp]) {       // crimped seals
-    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(0, y0, W, crimp);
+    ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(0, y0, W, crimp);
     ctx.fillStyle = 'rgba(0,0,0,.1)'; for (let x = 0; x < W; x += 12) ctx.fillRect(x, y0, 5, crimp);
   }
   ctx.setLineDash([12, 9]); ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, crimp + 5); ctx.lineTo(W, crimp + 5); ctx.stroke(); ctx.setLineDash([]);
-  label(ctx, '✂ TEAR HERE', W / 2, crimp + 24, 17, '#ffffff', null);
-  logo(ctx, W / 2, 150, 104);
-  ctx.fillStyle = '#3a1560'; ctx.beginPath(); ctx.roundRect(46, 218, W - 92, 62, 31); ctx.fill();
-  label(ctx, th.name.toUpperCase(), W / 2, 250, 34, '#ffffff', null, W - 130);
-  ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.beginPath(); ctx.arc(W / 2, 430, 122, 0, TAU); ctx.fill();
-  ctx.fillStyle = '#3a1560'; blobPath(ctx, W / 2, 440, 92); ctx.fill();
-  label(ctx, '?', W / 2, 432, 104, '#ffd93b', null);
-  label(ctx, 'WHO’S INSIDE?', W / 2, 588, 34, '#ffffff');
-  label(ctx, `1 OF ${PER} TO COLLECT · SERIES ${String(ti + 1).padStart(2, '0')}`, W / 2, 632, 19, '#ffffff', '#3a1560');
-  ctx.save(); ctx.translate(412, 330); ctx.rotate(0.2); ctx.fillStyle = '#ffd93b'; ctx.beginPath();
-  for (let k = 0; k < 24; k++) { const a = k / 24 * TAU, r = k % 2 ? 44 : 56; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.fill();
-  label(ctx, 'BLIND', 0, -11, 21, '#d3122f', null); label(ctx, 'BAG!', 0, 13, 21, '#d3122f', null); ctx.restore();
+  label(ctx, '✂ TEAR HERE', W / 2, crimp + 22, 15, '#ffffff', null);
+  drawLogo(ctx, W / 2, 158, 128);
+  ribbon(ctx, th.name, W / 2, 268, 400, 58);
+  // mystery window
+  ctx.fillStyle = BRAND.ink; ctx.beginPath(); ctx.arc(W / 2, 440, 128, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(W / 2, 440, 116, 0, TAU); ctx.fill();
+  ctx.fillStyle = BRAND.ink; blobPath(ctx, W / 2, 448, 86); ctx.fill();
+  label(ctx, '?', W / 2, 446, 100, BRAND.yellow, null);
+  burst(ctx, 418, 356, 54, [['BLIND', 19, '#d3122f'], ['BAG!', 19, '#d3122f']]);
+  label(ctx, 'WHO’S INSIDE?', W / 2, 600, 32, '#ffffff');
+  // info bar
+  ctx.fillStyle = BRAND.ink; ctx.fillRect(0, 630, W, 50);
+  ctx.font = bfont(17); ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+  ctx.textAlign = 'left'; ctx.fillText(`SERIES ${no}`, 22, 656); ctx.textAlign = 'right'; ctx.fillText('AGES 4+', W - 22, 656);
+  ctx.textAlign = 'center'; ctx.fillStyle = BRAND.yellow; ctx.fillText(`1 OF ${PER} TO COLLECT`, W / 2, 656);
   return tex(cv);
 }
 function headerTexture(th, ti) {
   const W = 1024, H = 640, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-  const ctx = cv.getContext('2d'), g = ctx.createLinearGradient(0, 0, W, H);
-  g.addColorStop(0, th.bag[0]); g.addColorStop(1, th.bag[1]); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  sparkles(ctx, W, H, 34, ti + 9);
-  logo(ctx, W / 2 - 70, 150, 172);
-  ctx.fillStyle = '#3a1560'; ctx.beginPath(); ctx.roundRect(150, 262, W - 300, 84, 42); ctx.fill();
-  label(ctx, th.name.toUpperCase(), W / 2, 305, 50, '#ffffff', null, W - 380);
-  label(ctx, `BLIND BAGS · ${PER} TO COLLECT!`, W / 2, 398, 40, '#ffffff');
-  ctx.save(); ctx.translate(880, 120); ctx.rotate(0.2); ctx.fillStyle = '#ffd93b'; ctx.beginPath();
-  for (let k = 0; k < 24; k++) { const a = k / 24 * TAU, r = k % 2 ? 78 : 96; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.fill();
-  label(ctx, 'ONLY', 0, -34, 22, '#3a1560', null); label(ctx, '$4.97', 0, 0, 44, '#d3122f', null); label(ctx, 'EACH!', 0, 34, 22, '#3a1560', null); ctx.restore();
+  const ctx = cv.getContext('2d');
+  backdrop(ctx, W, H, th, ti + 9);
+  drawLogo(ctx, W / 2 - 60, 150, 215);
+  pill(ctx, BRAND.tagline, W / 2 - 60, 290, 24, { bg: '#ffffff', fg: BRAND.ink });
+  ribbon(ctx, th.name, W / 2, 372, 640, 76);
+  label(ctx, `BLIND BAGS · ${PER} TO COLLECT · SERIES ${String(ti + 1).padStart(2, '0')}`, W / 2, 446, 28, '#ffffff', BRAND.ink, W - 120);
+  burst(ctx, 900, 150, 98, [['ONLY', 22], ['$4.97', 46, '#d3122f'], ['EACH!', 22]]);
   return tex(cv);
 }
 function lipTexture(th) {
   const W = 1024, H = 180, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-  const ctx = cv.getContext('2d'); ctx.fillStyle = th.bag[1]; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = 'rgba(255,255,255,.18)'; for (let x = -H; x < W; x += 70) { ctx.beginPath(); ctx.moveTo(x, H); ctx.lineTo(x + H, 0); ctx.lineTo(x + H + 34, 0); ctx.lineTo(x + 34, H); ctx.fill(); }
-  label(ctx, 'RIP IT · REVEAL IT · COLLECT ’EM ALL!', W / 2, H / 2 + 4, 50, '#ffffff', '#3a1560', W - 60);
+  const ctx = cv.getContext('2d'); ctx.fillStyle = BRAND.ink; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = th.bag[1]; ctx.fillRect(0, 0, W, 16); ctx.fillRect(0, H - 16, W, 16);
+  ctx.fillStyle = BRAND.pink; blobPath(ctx, 70, H / 2 + 4, 44); ctx.fill(); ctx.fillStyle = BRAND.teal; blobPath(ctx, W - 70, H / 2 + 4, 44); ctx.fill();
+  label(ctx, 'RIP IT · REVEAL IT · COLLECT ’EM ALL!', W / 2, H / 2 + 4, 48, BRAND.yellow, null, W - 280);
   return tex(cv);
 }
 
@@ -441,8 +433,12 @@ $('#all').onclick = () => st.mode === 'box' ? ripRandom() : download(specsFor(st
 
 /* ---------- go ---------- */
 
+function pageLogo() {
+  const cv = $('#logo'), W = 720, H = 300; cv.width = W; cv.height = H;
+  drawLogo(cv.getContext('2d'), W / 2, H / 2 - 6, 206);
+}
 const start = () => {
-  enter(); resize();
+  pageLogo(); enter(); resize();
   camera.position.copy(goal.pos).addScaledVector(new V3(0, 0.4, 1), 6); controls.target.copy(goal.target);
 };
 (document.fonts?.load ? Promise.race([document.fonts.load('700 40px Fredoka'), new Promise(r => setTimeout(r, 1500))]) : Promise.resolve()).then(start, start);
