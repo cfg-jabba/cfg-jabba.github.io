@@ -18,8 +18,8 @@ function M(color, o) {
   return matCache.get(color);
 }
 const BLACK = M('#1d1a2b', { roughness: 0.15, clearcoat: 1 });
-const GOLD = M('#ffc928', { metalness: 0.35, roughness: 0.3 });
-const STEEL = M('#cfd6e4', { metalness: 0.85, roughness: 0.28, side: THREE.DoubleSide });
+const GOLD = M('#ffc928', { metalness: 0.2, roughness: 0.32 });
+const STEEL = M('#c3ccdd', { metalness: 0.25, roughness: 0.3, side: THREE.DoubleSide });
 const CHEEK = M('#ff86ad', { roughness: 0.85, clearcoat: 0 });
 
 const mesh = (geo, m) => new THREE.Mesh(geo, M(m));
@@ -83,14 +83,14 @@ function wing(c) {
   sh.quadraticCurveTo(0.42, 0.34, 0.4, 0.12);
   sh.quadraticCurveTo(0.24, 0.16, 0.16, -0.1);
   sh.quadraticCurveTo(0.06, -0.04, 0, -0.05);
-  const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 3, curveSegments: 10 });
-  geo.translate(0, 0, -0.025);
+  const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.1, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 4, curveSegments: 10 });
+  geo.translate(0, 0, -0.05);
   return mesh(geo, c);
 }
 
 /* ---------- the squishy body ---------- */
 
-const SHAPE = { w: 1, h: 1.15, d: 0.92, taper: 0.18, boxy: 1, flat: 0.6, low: 0.7, full: 0.85 };
+const SHAPE = { w: 0.98, h: 1.38, d: 0.9, taper: 0.2, boxy: 1, flat: 0.42, low: 0.6, full: 0.8 };
 const spow = (x, p) => Math.sign(x) * Math.pow(Math.abs(x), p);
 
 // u: 0..1 around (0.5 = front), v: 0..1 bottom to top. Origin sits at the widest point.
@@ -151,7 +151,7 @@ function makeBlob(spec) {
   const geo = bodyGeo(s);
   const root = new THREE.Group(); root.name = spec.name;
   const g = new THREE.Group(); g.position.y = s.h * s.low; root.add(g);
-  const body = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map: paintBody(spec), roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.3, ...spec.mat }));
+  const body = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map: paintBody(spec), roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.35, ...spec.mat }));
   g.add(body);
   const probe = new THREE.Mesh(geo);
 
@@ -217,17 +217,17 @@ function eye(type, es = 1, side = 1) {
 }
 
 function face(b, f = {}) {
-  const { eyes = 'dot', mouth = 'smile', ey = 12, eg = 21, es = 1.18, cheeks = true, my = ey - 11 } = f;
+  const { eyes = 'dot', mouth = 'smile', ey = 4, eg = 27, es = 1.55, cheeks = true, my = ey - 6 } = f;
   if (eyes !== 'none') for (const side of [-1, 1]) {
     const type = eyes === 'wink' ? (side < 0 ? 'dot' : 'happy') : eyes;
     b.put(eye(type, es, side), side * eg, ey);
   }
-  if (cheeks) for (const side of [-1, 1]) b.put(ball(0.078, CHEEK, 1, 0.62, 0.22), side * (eg + 14), ey - 7);
-  const smile = (r, x = 0) => { const a = arc(r, 0.017, BLACK); a.rotation.z = Math.PI; return at(a, x, r * 0.5, 0.004); };
-  if (mouth === 'smile') b.put(group(smile(0.045)), 0, my);
+  if (cheeks) for (const side of [-1, 1]) b.put(ball(0.105, CHEEK, 1, 0.62, 0.2), side * (eg + 13), ey - 9);
+  const smile = (r, x = 0) => { const a = arc(r, 0.022, BLACK); a.rotation.z = Math.PI; return at(a, x, r * 0.5, 0.004); };
+  if (mouth === 'smile') b.put(group(smile(0.06)), 0, my);
   if (mouth === 'wide') b.put(group(smile(0.1)), 0, my);
-  if (mouth === 'w') b.put(group(smile(0.034, -0.034), smile(0.034, 0.034)), 0, my);
-  if (mouth === 'o') b.put(ball(0.042, '#5b2440', 1, 1.15, 0.4), 0, my);
+  if (mouth === 'w') b.put(group(smile(0.045, -0.045), smile(0.045, 0.045)), 0, my);
+  if (mouth === 'o') b.put(ball(0.06, '#5b2440', 1, 1.15, 0.4), 0, my);
 }
 
 /* ---------- the cast ---------- */
@@ -236,22 +236,23 @@ const CAST = [
   {
     name: 'Sir Squish', cls: 'Knight', color: '#7db4ea', belly: '#e8f4ff', stats: [4, 3, 5],
     blurb: 'Sworn protector of the snack drawer. Has never once lost a duel (has never once been in a duel).',
-    face: { ey: 8 },
     build(b) {
       b.cap(0.68, STEEL, 1.05); b.ring(0.68, GOLD, 0.05, 1.065);
-      b.put(box(0.11, 0.26, 0.06, STEEL), 0, 27, { out: 0.05 });
-      const plume = horn(0.2, 0.8, 1.5, '#ff5470', { pow: 0.6, tip: 0.6 });
+      b.put(box(0.17, 0.34, 0.1, STEEL), 0, 37, { out: 0.03 });
+      const plume = horn(0.26, 0.95, 1.6, '#ff5470', { pow: 0.6, tip: 0.6 });
       b.put(plume, 0, 90, { up: true, out: -0.06 }); plume.rotateY(Math.PI / 2);
       const shield = group(ball(0.31, '#3f6fd8', 1, 1.15, 0.3), at(ball(0.11, GOLD, 1, 1, 0.5), 0, 0, 0.08), at(torus(0.3, 0.035, GOLD), 0, 0, 0.02));
-      shield.children[2].scale.y = 1.15;
-      b.put(shield, 60, -20, { out: 0.1 });
-      const sword = group(at(box(0.08, 0.5, 0.035, STEEL), 0, 0.33), at(box(0.26, 0.06, 0.07, GOLD), 0, 0.06), at(cyl(0.032, 0.032, 0.16, '#7a4b2e'), 0, -0.04), at(ball(0.05, GOLD), 0, -0.13));
-      b.put(sword, -64, -22, { out: 0.13, roll: 18 });
+      shield.children[2].scale.y = 1.15; shield.scale.setScalar(1.45);
+      b.put(shield, 47, -20, { out: 0.12 });
+      const tipB = box(0.127, 0.127, 0.08, STEEL); tipB.rotation.z = Math.PI / 4;
+      const sword = group(at(box(0.18, 0.46, 0.08, STEEL), 0, 0.36), at(tipB, 0, 0.59), at(box(0.44, 0.1, 0.13, GOLD), 0, 0.1), at(cyl(0.06, 0.06, 0.2, '#7a4b2e'), 0, -0.02), at(ball(0.09, GOLD), 0, -0.14));
+      b.put(sword, -48, -17, { out: 0.16, roll: 14 });
     },
   },
   {
     name: 'Wizzle', cls: 'Wizard', color: '#b9a0f5', belly: '#f1e9ff', stats: [2, 5, 5],
     blurb: 'Knows exactly one spell. It makes glitter. It cannot be undone.',
+    face: { ey: 10, my: 3 },
     paint(P) {
       const { ctx } = P; ctx.fillStyle = '#ffd93b'; ctx.beginPath();
       for (let i = 0; i < 10; i++) { const r = i % 2 ? 20 : 44, a = i / 10 * TAU - Math.PI / 2; ctx[i ? 'lineTo' : 'moveTo'](P.X(0.5) + Math.cos(a) * r * 0.9, P.Y(0.27) + Math.sin(a) * r); }
@@ -264,15 +265,15 @@ const CAST = [
       const st = star(0.13, '#ffd93b'); st.rotation.x = -0.35; hat.add(at(st, 0.1, 0.42, 0.37));
       hat.rotation.set(-0.08, 0.5, -0.1);
       b.add(hat, 0, b.s.h * 0.86, 0);
-      const wand = group(cyl(0.028, 0.034, 0.7, '#8a5a3c'), at(star(0.13, '#ffd93b'), 0, 0.42, 0));
-      wand.children[0].position.y = 0.05;
-      b.put(wand, 64, -18, { out: 0.13, roll: -22 });
+      const wand = group(at(cyl(0.055, 0.065, 0.6, '#8a5a3c'), 0, 0.05), at(star(0.24, '#ffd93b', 0.1), 0, 0.5, 0));
+      b.put(wand, 52, -20, { out: 0.16, roll: -20 });
+      for (const [yw, pt, r] of [[0, -22, 0.2], [-13, -15, 0.17], [13, -15, 0.17], [-24, -7, 0.13], [24, -7, 0.13], [0, -34, 0.14]]) b.put(ball(r, '#ffffff'), yw, pt, { out: -0.03 });
     },
   },
   {
     name: 'Embry', cls: 'Dragon Whelp', color: '#f25a52', belly: '#ffe6bd', stats: [3, 4, 5],
     blurb: 'Breathes fire, technically. Mostly it just warms up your cocoa a tiny bit.',
-    face: { ey: 17, mouth: 'none', eg: 23 },
+    face: { ey: 17, mouth: 'none', eg: 28 },
     paint(P) {
       const { ctx } = P; ctx.save(); ctx.beginPath(); ctx.ellipse(P.X(0.5), P.Y(0.25), 0.1 * P.W, 0.21 * P.H, 0, 0, TAU); ctx.clip();
       ctx.strokeStyle = '#f3c98e'; ctx.lineWidth = 7;
@@ -280,10 +281,10 @@ const CAST = [
       ctx.restore();
     },
     build(b) {
-      const snout = group(ball(0.27, '#ff9388', 1, 0.7, 0.6), at(ball(0.028, '#a52a2a'), -0.08, 0.05, 0.13), at(ball(0.028, '#a52a2a'), 0.08, 0.05, 0.13));
-      b.put(snout, 0, 1, { out: -0.03 });
+      const snout = group(ball(0.25, '#ffb9ab', 1, 0.7, 0.6), at(ball(0.04, '#b5303a', 1, 1.3, 0.6), -0.085, 0.04, 0.125), at(ball(0.04, '#b5303a', 1, 1.3, 0.6), 0.085, 0.04, 0.125));
+      b.put(snout, 0, 3, { out: -0.04 });
       for (const sd of [-1, 1]) {
-        const h = horn(0.11, 0.42, 0.9 * sd, '#fff1cf', { pow: 0.8, tip: 0.2 });
+        const h = horn(0.15, 0.48, 0.9 * sd, '#fff1cf', { pow: 0.8, tip: 0.3 });
         b.put(h, sd * 30, 64, { up: true, out: -0.04 });
         const w = wing('#c73a3f'); w.scale.set(sd * 1.15, 1.15, 1.15); w.rotation.y = sd * 0.45;
         b.add(w, sd * 0.78 * b.s.w, 0.2, -0.3);
@@ -298,25 +299,25 @@ const CAST = [
     name: 'King Gloop', cls: 'Slime Royalty', color: '#7fe36c', stats: [5, 1, 5],
     shape: { w: 1.12, h: 0.82, d: 1.02, taper: 0.3, low: 0.8, flat: 0.5 }, mat: { roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.1 },
     blurb: 'First monster you meet in every dungeon. Rules a kingdom of exactly one puddle.',
-    face: { ey: 6, eg: 25, mouth: 'w' },
+    face: { ey: 6, eg: 30, mouth: 'w' },
     paint(P) { P.ell(0.405, 0.71, 0.03, 0.075, 'rgba(255,255,255,.75)', 0.5); P.ell(0.385, 0.6, 0.011, 0.022, 'rgba(255,255,255,.75)'); P.ell(0.5, 0.2, 0.2, 0.2, 'rgba(60,190,90,.25)'); },
     build(b) {
       const tip = horn(0.46, 0.7, 0.8, M(b.color, { roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.1 }), { pow: 0.8, tip: 0.15 });
       b.add(tip, -0.02, b.s.h * 0.72, 0);
-      const crown = group(cyl(0.21, 0.17, 0.13, GOLD));
-      for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; crown.add(at(cone(0.055, 0.14, GOLD), Math.sin(a) * 0.2, 0.12, Math.cos(a) * 0.2), at(ball(0.03, i % 2 ? '#ff4d6d' : '#4dc3ff'), Math.sin(a) * 0.2, 0, Math.cos(a) * 0.2)); }
-      crown.scale.setScalar(1.25);
-      b.put(crown, 38, 50, { up: true, out: 0.04 });
+      const crown = group(cyl(0.47, 0.4, 0.2, M('#ffc928', { metalness: 0.2, roughness: 0.32, side: THREE.DoubleSide }), true));
+      for (let i = 0; i < 6; i++) { const a = (i + 0.5) / 6 * TAU, x = Math.sin(a), z = Math.cos(a); crown.add(at(cone(0.13, 0.28, GOLD), x * 0.44, 0.2, z * 0.44), at(ball(0.06, i % 2 ? '#ff4d6d' : '#4dc3ff'), x * 0.45, 0, z * 0.45)); }
+      crown.rotation.set(0.06, 0, -0.1);
+      b.add(crown, 0, b.s.h * 0.72 + 0.14, 0);
     },
   },
   {
     name: 'Mendy', cls: 'Healer', color: '#f1eeff', stats: [3, 1, 5],
     blurb: 'Restores 5 HP with a boop on the nose. Out of mana by 8pm, please respect her bedtime.',
-    face: { eyes: 'happy', ey: 13 },
+    face: { eyes: 'happy', ey: 14, eg: 19, es: 1.3, my: 7 },
     paint(P) {
       const { ctx } = P; ctx.strokeStyle = '#ffcb3d'; ctx.lineWidth = 12;
-      ctx.beginPath(); ctx.ellipse(P.X(0.5), P.Y(0.585), 0.14 * P.W, 0.155 * P.H, 0, 0, TAU); ctx.fillStyle = '#ffd9c2'; ctx.fill(); ctx.stroke();
-      P.rect(0.5, 0.25, 0.022, 0.15, '#4fd69c'); P.rect(0.5, 0.25, 0.066, 0.05, '#4fd69c');
+      ctx.beginPath(); ctx.ellipse(P.X(0.5), P.Y(0.565), 0.112 * P.W, 0.12 * P.H, 0, 0, TAU); ctx.fillStyle = '#ffd9c2'; ctx.fill(); ctx.stroke();
+      P.rect(0.5, 0.3, 0.026, 0.16, '#4fd69c'); P.rect(0.5, 0.3, 0.078, 0.055, '#4fd69c');
       P.rect(0.5, 0.045, 1, 0.03, '#ffcb3d');
     },
     build(b) {
@@ -324,35 +325,35 @@ const CAST = [
       b.add(tip, 0, b.s.h * 0.8, -0.3);
       const halo = torus(0.4, 0.045, M('#ffe27a', { emissive: '#ffb300', emissiveIntensity: 0.6 })); halo.rotation.set(Math.PI / 2 - 0.2, 0, 0.1);
       b.add(halo, 0, b.s.h + 0.38, 0.1);
-      const staff = group(at(cyl(0.032, 0.032, 1.5, '#9b6b43'), 0, 0.3), at(torus(0.13, 0.035, GOLD), 0, 1.16), at(ball(0.075, M('#58e6a5', { emissive: '#1fae6f', emissiveIntensity: 0.5 })), 0, 1.16));
+      const staff = group(at(cyl(0.055, 0.055, 1.3, '#9b6b43'), 0, 0.35), at(torus(0.2, 0.06, GOLD), 0, 1.16), at(ball(0.13, M('#58e6a5', { emissive: '#1fae6f', emissiveIntensity: 0.5 })), 0, 1.16));
       b.put(staff, -66, -20, { out: 0.15, roll: 8 });
     },
   },
   {
     name: 'Pilf', cls: 'Rogue', color: '#a3acbf', belly: '#f1f3f8', stats: [2, 3, 5],
     blurb: 'Steals only the left sock. Nobody knows why. He has four hundred of them.',
-    face: { eyes: 'big', es: 0.85, ey: 13, eg: 20, mouth: 'w', my: -2 },
+    face: { eyes: 'big', es: 1.05, ey: 13, eg: 21, mouth: 'w', my: 0 },
     under(P) { P.ell(0.5 - 0.058, 0.575, 0.06, 0.07, '#4a5066', 0.3); P.ell(0.5 + 0.058, 0.575, 0.06, 0.07, '#4a5066', -0.3); },
     build(b) {
       for (const sd of [-1, 1]) {
-        const ear = group(ball(0.21, b.color, 1, 1, 0.45), at(ball(0.12, '#4a5066', 1, 1, 0.45), 0, 0, 0.05));
+        const ear = group(ball(0.27, b.color, 1, 1, 0.45), at(ball(0.16, '#4a5066', 1, 1, 0.45), 0, 0, 0.06));
         ear.children.forEach(k => k.position.y = 0.17);
         const { p, n } = b.surf(sd * 44, 50); ear.rotation.z = -sd * 0.55; b.add(ear, p.x, p.y - 0.08, p.z);
       }
-      b.put(ball(0.05, BLACK, 1.2, 0.8, 0.8), 0, 5, { out: 0.01 });
+      b.put(ball(0.065, BLACK, 1.2, 0.8, 0.8), 0, 6, { out: 0.01 });
       const tail = horn(0.22, 1.1, 1.9, null, { pow: 0.45, tip: 0.5, stripes: ['#4a5066', '#c9cfdc'], bands: 7 }); tail.scale.x = -1; tail.rotation.z = -Math.PI / 2; tail.rotation.y = 0.35;
       b.add(tail, 0.6, b.floor + 0.3, -0.45);
       const sack = group(ball(0.28, '#dcb878', 1, 0.95, 1), at(cyl(0.1, 0.07, 0.12, '#dcb878'), 0, 0.27), at(torus(0.075, 0.025, '#8a5a3c'), 0, 0.23));
       sack.children[2].rotation.x = Math.PI / 2;
       const coin = cyl(0.085, 0.085, 0.03, GOLD); coin.rotation.set(1.2, 0, 0.4); sack.add(at(coin, 0.03, 0.36, 0.03));
-      b.put(sack, -62, -34, { out: 0.16, up: true });
+      b.put(sack, -50, -27, { out: 0.2, up: true });
     },
   },
   {
     name: 'Sporo', cls: 'Mushroom Sprout', color: '#fff0d4', belly: '#fff9ec', stats: [3, 2, 5],
     shape: { w: 0.84, h: 0.95, d: 0.8, taper: 0.08 },
     blurb: 'Grows two inches when praised. Releases a puff of spores when startled (rude, but sparkly).',
-    face: { ey: -4, eg: 23 },
+    face: { ey: -6, eg: 27, es: 1.35 },
     build(b) {
       const R = 1.18, H = 0.82, pts = [new THREE.Vector2(0, -0.04), new THREE.Vector2(R * 0.86, -0.04), new THREE.Vector2(R, 0.08)];
       for (let i = 1; i <= 14; i++) { const p = Math.PI / 2 * (1 - i / 14); pts.push(new THREE.Vector2(Math.max(R * Math.sin(p), 0.0001), 0.08 + H * Math.cos(p))); }
@@ -373,7 +374,7 @@ const CAST = [
     name: 'Chompy', cls: 'Mimic', color: '#b57440', stats: [4, 4, 5],
     shape: { w: 1.05, h: 0.8, d: 0.82, boxy: 0.5, flat: 0.3, low: 0.9, taper: 0.05, full: 0.55 },
     blurb: 'Pretends to be treasure. Gives it away immediately by giggling.',
-    face: { eyes: 'big', ey: 36, eg: 17, mouth: 'none', cheeks: false },
+    face: { eyes: 'big', ey: 36, eg: 19, es: 1.2, mouth: 'none', cheeks: false },
     paint(P) {
       const { ctx } = P;
       ctx.strokeStyle = '#96592c'; ctx.lineWidth = 4;
@@ -394,14 +395,14 @@ const CAST = [
   {
     name: 'Shardy', cls: 'Crystal Golem', color: '#a9b6cc', belly: '#e6ecf5', stats: [5, 3, 5],
     blurb: 'Ancient guardian of the Glimmer Caves. Has been napping for 900 years and would like 5 more minutes.',
-    face: { eyes: 'sleepy', ey: 10 },
+    face: { eyes: 'sleepy' },
     under(P) { for (const [u, v, r] of [[0.2, 0.6, 0.03], [0.3, 0.3, 0.04], [0.72, 0.45, 0.035], [0.8, 0.7, 0.03], [0.9, 0.3, 0.04], [0.1, 0.25, 0.03], [0.66, 0.75, 0.02], [0.34, 0.74, 0.022]]) P.ell(u, v, r, r * 1.6, '#93a1ba'); },
     build(b) {
       const cm = M('#86f1ff', { roughness: 0.08, flatShading: true, emissive: '#19a8cc', emissiveIntensity: 0.4, clearcoat: 1 });
-      const gem = sc => { const m = mesh(new THREE.OctahedronGeometry(1), cm); m.scale.set(0.17 * sc, 0.42 * sc, 0.17 * sc); return m; };
-      for (const [yaw, p, sc, roll] of [[0, 88, 1.35, 0], [-30, 66, 0.95, 20], [34, 64, 1.05, 50], [66, 44, 0.65, 0], [-68, 42, 0.75, 30], [180, 60, 1, 0], [150, 30, 0.7, 0], [-150, 35, 0.6, 0]])
+      const gem = sc => { const m = mesh(new THREE.OctahedronGeometry(1), cm); m.scale.set(0.26 * sc, 0.44 * sc, 0.26 * sc); return m; };
+      for (const [yaw, p, sc, roll] of [[0, 88, 1.3, 0], [-34, 66, 0.95, 20], [38, 64, 1.05, 50], [180, 58, 1, 0], [120, 50, 0.75, 0], [-125, 52, 0.7, 0]])
         b.put(gem(sc), yaw, p, { up: true, out: 0.12 * sc, roll });
-      const core = mesh(new THREE.OctahedronGeometry(1), cm); core.scale.set(0.14, 0.18, 0.06);
+      const core = mesh(new THREE.OctahedronGeometry(1), cm); core.scale.set(0.2, 0.25, 0.08);
       b.put(core, 0, -26, { out: 0.01 });
       for (const sd of [-1, 1]) b.put(ball(0.15, '#93a1ba', 1, 1.2, 1), sd * 72, -18, { out: 0.03 });
     },
@@ -410,7 +411,7 @@ const CAST = [
     name: 'Boo-Hoo', cls: 'Friendly Ghost', color: '#e4e9ff', stats: [1, 2, 5],
     shape: { w: 0.92, h: 1.25, d: 0.86, taper: 0.12, low: 0.6 },
     blurb: 'Tried haunting once. Felt bad about it. Now leaves little apology notes.',
-    face: { es: 1.2, ey: 14, mouth: 'o', eg: 20 },
+    face: { es: 1.7, ey: 10, mouth: 'o', eg: 24 },
     build(b) {
       for (let i = 0; i < 9; i++) { const a = (i + 0.5) / 9 * TAU; b.add(ball(0.22, b.color), Math.sin(a) * 0.74 * b.s.w, b.floor + 0.21, Math.cos(a) * 0.74 * b.s.d); }
       for (const sd of [-1, 1]) { const arm = ball(0.14, b.color, 1, 1.6, 1); b.put(arm, sd * 66, -4, { out: 0.03 }); arm.rotateZ(-sd * 0.8); }
@@ -423,7 +424,7 @@ const CAST = [
     name: 'Brewster', cls: 'Health Potion', color: '#ffd9e4', stats: [5, 1, 5],
     shape: { w: 1.03, h: 0.98, d: 1.0, taper: 0.04, low: 0.78 }, mat: { roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.1 },
     blurb: 'Tastes like strawberry. Restores 50 HP. Would really prefer you not drink him though.',
-    face: { eyes: 'wink', ey: 12 },
+    face: { eyes: 'wink', ey: 8 },
     paint(P) {
       const { ctx } = P; ctx.fillStyle = '#ff5d8f'; ctx.beginPath(); ctx.moveTo(0, P.H);
       for (let x = 0; x <= P.W; x += 8) ctx.lineTo(x, P.Y(0.7 + 0.018 * Math.sin(x / P.W * TAU * 6)));
@@ -444,7 +445,7 @@ const CAST = [
   {
     name: 'Strum', cls: 'Bard', color: '#79d46f', belly: '#ecf9c6', stats: [2, 2, 5],
     blurb: 'Only knows the battle theme. Plays it at breakfast. Plays it at bedtime.',
-    face: { eyes: 'none', ey: 15, mouth: 'wide', my: 10, eg: 22 },
+    face: { eyes: 'none', ey: 14, mouth: 'wide', my: 12, eg: 24 },
     build(b) {
       for (const sd of [-1, 1]) {
         const bump = group(ball(0.25, b.color), at(ball(0.17, '#ffffff', 1, 1, 0.5), 0, 0.03, 0.2), at(ball(0.105, BLACK, 1, 1.1, 0.5), -sd * 0.015, 0.03, 0.255), at(ball(0.034, '#ffffff'), -sd * 0.015 - 0.03, 0.08, 0.3));
@@ -457,8 +458,8 @@ const CAST = [
       hat.rotation.set(-0.35, -0.4, 0);
       b.add(hat, 0, b.s.h * 0.93, -0.22);
       const wood = '#8a5a3c';
-      const lute = group(ball(0.25, '#e6ad62', 1, 1.25, 0.45), at(ball(0.075, '#5a3216', 1, 1, 0.3), 0, 0.03, 0.095), at(box(0.07, 0.5, 0.05, wood), 0, 0.5, 0.02), at(box(0.12, 0.12, 0.06, wood), 0, 0.78, 0.02));
-      b.put(lute, -44, -27, { out: 0.13, roll: -38 });
+      const lute = group(ball(0.25, '#e6ad62', 1, 1.25, 0.45), at(ball(0.075, '#5a3216', 1, 1, 0.3), 0, 0.03, 0.095), at(box(0.11, 0.5, 0.09, wood), 0, 0.5, 0.02), at(box(0.2, 0.16, 0.1, wood), 0, 0.78, 0.02)); lute.scale.setScalar(1.15);
+      b.put(lute, -50, -26, { out: 0.16, roll: -50 });
     },
   },
 ];
@@ -481,14 +482,14 @@ scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnviron
 scene.environmentIntensity = 0.55;
 scene.add(new THREE.HemisphereLight(0xffffff, 0xe8e4f5, 1.1));
 const sun = new THREE.DirectionalLight(0xffffff, 2.0);
-sun.position.set(-6, 16, 9); sun.castShadow = true;
+sun.position.set(-5, 22, 8); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048); sun.shadow.normalBias = 0.04; sun.shadow.radius = 5;
 Object.assign(sun.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: 1, far: 50 });
 scene.add(sun);
 
 // white studio floor that only shows soft shadows
 {
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.ShadowMaterial({ color: 0x5b4a8a, opacity: 0.22 }));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.ShadowMaterial({ color: 0x5b4a8a, opacity: 0.16 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
 }
 
@@ -496,12 +497,21 @@ const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
 const controls = new OrbitControls(camera, canvas);
 Object.assign(controls, { enableDamping: true, enablePan: false, minDistance: 4, maxDistance: 70, maxPolarAngle: 86 * D });
 
+const blobShadow = (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const ctx = cv.getContext('2d'), gr = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(70,50,120,.55)'); gr.addColorStop(0.55, 'rgba(70,50,120,.22)'); gr.addColorStop(1, 'rgba(70,50,120,0)');
+  ctx.fillStyle = gr; ctx.fillRect(0, 0, 128, 128);
+  const geo = new THREE.PlaneGeometry(3.3, 3.0).rotateX(-Math.PI / 2), tex = new THREE.CanvasTexture(cv);
+  return () => new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+})();
 const proxyGeo = new THREE.SphereGeometry(1.25, 12, 8), proxyMat = new THREE.MeshBasicMaterial({ visible: false });
 const RARITY = ['Common', 'Common', 'Rare', 'Common', 'Rare', 'Common', 'Common', 'Rare', 'Ultra Rare', 'Common', 'Common', 'Rare'];
 const blobs = CAST.map((spec, i) => {
   const root = makeBlob(spec); scene.add(root);
   const proxy = new THREE.Mesh(proxyGeo, proxyMat); proxy.userData.i = i; scene.add(proxy);
-  return { spec, root, proxy, home: new V3(), yaw: (Math.sin(i * 12.9898) * 43758.5453 % 1) * 0.3, s: 0, sv: 0, w: 0, wv: 0, vis: 1, hop: -1, nextHop: 2 + Math.random() * 8, ph: Math.random() * 10, wisp: root.getObjectByName('wisp') };
+  const shade = blobShadow(); scene.add(shade);
+  return { spec, root, proxy, shade, home: new V3(), yaw: (Math.sin(i * 12.9898) * 43758.5453 % 1) * 0.3, s: 0, sv: 0, w: 0, wv: 0, vis: 1, hop: -1, nextHop: 2 + Math.random() * 8, ph: Math.random() * 10, wisp: root.getObjectByName('wisp') };
 });
 
 /* ---------- layout & camera ---------- */
@@ -515,14 +525,14 @@ function layout() {
   blobs.forEach((b, i) => {
     const r = Math.floor(i / cols), c = i % cols;
     b.home.set((c - (cols - 1) / 2) * 2.9 + (r % 2 ? 0.35 : -0.35), 0, (r - (rows - 1) / 2) * 3.1);
-    b.root.position.copy(b.home); b.proxy.position.set(b.home.x, 1.1, b.home.z);
+    b.root.position.copy(b.home); b.proxy.position.set(b.home.x, 1.2, b.home.z); b.shade.position.set(b.home.x, 0.012, b.home.z);
   });
   bounds = { hx: (cols - 1) / 2 * 2.9 + 1.5, hz: (rows - 1) / 2 * 3.1 + 1.2 };
 }
 
 function overview() {
   const el = (portrait() ? 54 : 44) * D, dir = new V3(0, Math.sin(el), Math.cos(el)), target = new V3(0, 0.8, 0);
-  const pts = []; for (const x of [-1, 1]) for (const z of [-1, 1]) for (const y of [0, 2.3]) pts.push(new V3(x * bounds.hx, y, z * bounds.hz));
+  const pts = []; for (const x of [-1, 1]) for (const z of [-1, 1]) for (const y of [0, 2.6]) pts.push(new V3(x * bounds.hx, y, z * bounds.hz));
   const top = 1 - 2 * (innerWidth < 760 ? document.querySelector('header').offsetHeight + 6 : 50) / innerHeight, bot = -1 + 2 * 96 / innerHeight;
   const cam = camera.clone(); let lo = 4, hi = 160;
   for (let k = 0; k < 24; k++) {
@@ -538,8 +548,8 @@ function overview() {
 
 function closeup(i) {
   const asp = innerWidth / innerHeight, tanH = Math.tan(camera.fov * D / 2);
-  const dist = Math.max(8.2, 3.3 / (2 * tanH * asp)), vh = 2 * dist * tanH;
-  const target = blobs[i].home.clone(); target.y = innerWidth < 760 ? 1.25 - vh * 0.17 : 1.15;
+  const dist = Math.max(9, 3.4 / (2 * tanH * asp)), vh = 2 * dist * tanH;
+  const target = blobs[i].home.clone(); target.y = innerWidth < 760 ? 1.4 - vh * 0.17 : 1.3;
   const dir = new V3(0.22, 0.24, 1).normalize();
   return { target, pos: target.clone().addScaledVector(dir, dist) };
 }
@@ -615,7 +625,7 @@ async function download(list, filename) {
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 $('#glb').onclick = () => sel >= 0 && download([blobs[sel]], `${slug(blobs[sel].spec.name)}.glb`);
 $('#all').onclick = () => download(blobs, 'doods-series-1.glb');
-window.__doods = { blobs, select, download };
+window.__doods = { blobs, select, download, snap(i) { select(i); camera.position.copy(goal.pos); controls.target.copy(goal.target); blobs.forEach((b, k) => { b.vis = k === i ? 1 : 0; b.root.rotation.y = 0; }); } };
 
 /* ---------- animate ---------- */
 
@@ -628,6 +638,7 @@ renderer.setAnimationLoop(() => {
     const breathe = Math.sin(t * 1.8 + b.ph) * 0.018, sy = 1 + b.s * 0.12 + breathe;
     b.vis += ((sel < 0 || i === sel ? 1 : 0) - b.vis) * Math.min(1, dt * 9);   // the others duck out during a close-up
     b.root.visible = b.vis > 0.02;
+    b.shade.material.opacity = b.vis * (1 - b.root.position.y * 0.8); b.shade.scale.setScalar(b.vis);
     b.root.scale.set((1 - (sy - 1) * 0.6) * b.vis, sy * b.vis, (1 - (sy - 1) * 0.6) * b.vis);
     // weighted-bean wobble
     b.wv += (-60 * b.w - 3.2 * b.wv) * dt; b.w += b.wv * dt; b.root.rotation.z = b.w * 0.35;
