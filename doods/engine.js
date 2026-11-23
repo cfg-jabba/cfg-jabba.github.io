@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const D = Math.PI / 180, TAU = Math.PI * 2;
 const V3 = THREE.Vector3;
@@ -27,6 +28,7 @@ const cyl = (rt, rb, h, c, open = false) => mesh(new THREE.CylinderGeometry(rt, 
 const cone = (r, h, c) => mesh(new THREE.ConeGeometry(r, h, 20), c);
 const box = (w, h, d, c) => mesh(new THREE.BoxGeometry(w, h, d), c);
 const pill = (r, len, c) => mesh(new THREE.CapsuleGeometry(r, len, 8, 18), c);
+const rbox = (w, h, d, r, c) => mesh(new RoundedBoxGeometry(w, h, d, 4, Math.min(r, w / 2, h / 2, d / 2) * 0.999), c);
 const torus = (r, t, c) => mesh(new THREE.TorusGeometry(r, t, 12, 40), c);
 const group = (...kids) => { const g = new THREE.Group(); kids.forEach(k => g.add(k)); return g; };
 const at = (o, x = 0, y = 0, z = 0) => { o.position.set(x, y, z); return o; };
@@ -257,14 +259,19 @@ const CAST = [
     name: 'Sir Squish', cls: 'Knight', color: '#7db4ea', belly: '#e8f4ff', stats: [4, 3, 5],
     blurb: 'Sworn protector of the snack drawer. Has never once lost a duel (has never once been in a duel).',
     build(b) {
-      b.cap(0.68, STEEL, 1.06); b.ring(0.68, GOLD, 0.075, 1.07);
+      b.cap(0.68, STEEL, 1.06); b.ring(0.68, GOLD, 0.085, 1.07);
       const plume = horn(0.3, 0.75, 1.3, '#ff5470', { pow: 0.4, tip: 0.8 });
       b.put(plume, 0, 90, { up: true, out: -0.1 }); plume.rotateY(Math.PI / 2);
-      const shield = group(ball(0.37, GOLD, 1, 1.15, 0.4), at(ball(0.3, '#3f6fd8', 1, 1.15, 0.5), 0, 0, 0.04), at(ball(0.12, GOLD, 1, 1, 0.7), 0, 0, 0.14));
-      b.put(shield, 47, -20, { out: 0.02 });
-      const guard = pill(0.085, 0.24, GOLD); guard.rotation.z = Math.PI / 2;
-      const sword = group(at(pill(0.1, 0.32, STEEL), 0, 0.37), at(guard, 0, 0.1), at(ball(0.1, GOLD), 0, -0.06));
-      b.put(sword, -46, -16, { out: 0.05, roll: 14 });
+      // kite shield strapped to its left arm: thick rim, raised gold cross
+      const shield = group(ball(0.44, GOLD, 1, 1.2, 0.34), at(ball(0.37, '#3f6fd8', 1, 1.2, 0.4), 0, 0, 0.04),
+        at(rbox(0.11, 0.5, 0.1, 0.045, GOLD), 0, 0, 0.15), at(rbox(0.36, 0.11, 0.1, 0.045, GOLD), 0, 0.06, 0.15), at(ball(0.07, GOLD), 0, 0.06, 0.21));
+      b.put(shield, 54, -14, { out: 0.08 });
+      // a proper toy sword in its right hand: wide rounded blade, chunky guard, grip, pommel, hand wrapped round it
+      const blade = group(rbox(0.22, 0.6, 0.13, 0.06, STEEL), at(ball(0.11, STEEL, 1, 1.25, 0.6), 0, 0.29, 0), at(rbox(0.06, 0.48, 0.15, 0.03, '#9fb0c8'), 0, -0.02, 0));
+      const sword = group(at(blade, 0, 0.55), at(rbox(0.46, 0.11, 0.15, 0.05, GOLD), 0, 0.22), at(cyl(0.065, 0.065, 0.22, '#7a4a2a'), 0, 0.08), at(ball(0.1, GOLD), 0, -0.06),
+        at(ball(0.14, b.color, 1.05, 0.95, 1.05), 0, 0.09, 0.03));
+      sword.scale.setScalar(1.35); b.put(sword, -58, -24, { out: 0.12, roll: 10 });
+      b.put(ball(0.15, b.color, 1, 1.25, 1), 62, -18, { out: 0.02 });
     },
   },
   {
@@ -331,40 +338,52 @@ const CAST = [
     },
   },
   {
-    name: 'Mendy', cls: 'Healer', color: '#f1eeff', stats: [3, 1, 5],
+    name: 'Mendy', cls: 'Healer', color: '#bff0dc', belly: '#ffffff', stats: [3, 1, 5],
     blurb: 'Restores 5 HP with a boop on the nose. Out of mana by 8pm, please respect her bedtime.',
-    face: { eyes: 'happy', ey: 14, eg: 19, es: 1.3, my: 7 },
-    paint(P) {
-      const { ctx } = P; ctx.strokeStyle = '#ffcb3d'; ctx.lineWidth = 12;
-      ctx.beginPath(); ctx.ellipse(P.X(0.5), P.Y(0.565), 0.112 * P.W, 0.12 * P.H, 0, 0, TAU); ctx.fillStyle = '#ffd9c2'; ctx.fill(); ctx.stroke();
-      P.rect(0.5, 0.3, 0.026, 0.16, '#4fd69c'); P.rect(0.5, 0.3, 0.078, 0.055, '#4fd69c');
-      P.rect(0.5, 0.045, 1, 0.03, '#ffcb3d');
-    },
+    face: { eyes: 'happy', ey: 8, es: 1.4 },
     build(b) {
-      const tip = horn(0.36, 0.5, 1.4, b.color, { pow: 0.5, tip: 0.6 }); tip.rotation.y = Math.PI / 2;
-      b.add(tip, 0, b.s.h * 0.8, -0.3);
-      const halo = torus(0.4, 0.095, '#ffd95a'); halo.rotation.set(Math.PI / 2 - 0.15, 0, 0.08);
-      b.add(halo, 0, b.s.h * 0.92, 0.02);
-      for (const sd of [-1, 1]) b.put(ball(0.15, b.color, 1, 1.25, 1), sd * 64, -16, { out: 0.02 });
+      // white cleric hood with a gold trim, a soft point at the back and a big raised green cross
+      b.cap(0.7, '#ffffff', 1.07); b.ring(0.7, GOLD, 0.08, 1.08);
+      const tipH = horn(0.32, 0.42, 1.4, '#ffffff', { pow: 0.5, tip: 0.7 }); tipH.rotation.y = Math.PI / 2; b.add(tipH, 0, b.s.h * 0.86, -0.28);
+      b.put(group(rbox(0.16, 0.42, 0.14, 0.05, '#36c98a'), rbox(0.42, 0.16, 0.14, 0.05, '#36c98a')), 0, 66, { out: 0.05 });
+      // healing staff: chunky, planted on the floor and pressed against her side, so it moulds as one piece
+      const heart = (r, c) => { const h = group(at(ball(r, c), -r * 0.62, r * 0.35), at(ball(r, c), r * 0.62, r * 0.35)); const t = cone(r * 1.3, r * 1.9, c); t.rotation.z = Math.PI; h.add(at(t, 0, -r * 0.55)); h.scale.z = 0.65; return h; };
+      const H = 1.7, ringT = torus(0.24, 0.085, GOLD);
+      const staff = group(at(cyl(0.12, 0.13, H, '#c98b4d'), 0, H / 2), at(ball(0.14, '#c98b4d'), 0, 0.06), at(ringT, 0, H + 0.18), at(heart(0.17, '#ff6b9a'), 0, H + 0.2, 0));
+      b.add(staff, -0.8 * b.s.w, b.floor, 0.42);
+      const { p } = b.surf(-52, -14); b.add(ball(0.17, b.color, 1, 1.2, 1), p.x - 0.02, p.y, p.z + 0.08);
+      b.put(ball(0.15, b.color, 1, 1.25, 1), 64, -16, { out: 0.02 });
     },
   },
   {
-    name: 'Pilf', cls: 'Rogue', color: '#a3acbf', belly: '#f1f3f8', stats: [2, 3, 5],
-    blurb: 'Steals only the left sock. Nobody knows why. He has four hundred of them.',
-    face: { eyes: 'big', es: 1.05, ey: 13, eg: 21, mouth: 'w', my: 0 },
-    under(P) { P.ell(0.5 - 0.058, 0.575, 0.06, 0.07, '#4a5066', 0.3); P.ell(0.5 + 0.058, 0.575, 0.06, 0.07, '#4a5066', -0.3); },
+    name: 'Rattles', cls: 'Skeleton Guard', color: '#f3eedf', stats: [3, 3, 5],
+    blurb: 'Guards the dungeon door. Lets everyone in anyway. Rattles when he giggles.',
+    face: { eyes: 'none', mouth: 'none', cheeks: false },
+    paint(P) {   // ribs are printed, not raised: foam can't hold thin bars
+      const c = '#b9ab88'; P.rect(0.5, 0.33, 0.022, 0.18, c);
+      for (const [v, w] of [[0.39, 0.07], [0.33, 0.065], [0.27, 0.055]]) for (const sd of [-1, 1]) P.ell(0.5 + sd * (w / 2 + 0.012), v, w / 2, 0.016, c, -sd * 0.18);
+    },
     build(b) {
+      const bone = '#f3eedf', dark = '#3b2f45', glow = '#6ff3ff';
+      // deep eye sockets with little glowing pupils, a nose hole and a stitched grin of teeth
       for (const sd of [-1, 1]) {
-        const ear = group(ball(0.27, b.color, 1, 1, 0.7), at(ball(0.16, '#4a5066', 1, 1, 0.5), 0, 0, 0.12));
-        ear.children.forEach(k => k.position.y = 0.17);
-        const { p } = b.surf(sd * 44, 50); ear.rotation.z = -sd * 0.55; b.add(ear, p.x, p.y - 0.08, p.z);
+        b.put(group(ball(0.15, dark, 1, 1.15, 0.3), at(ball(0.06, glow, 1, 1, 0.5), 0, 0.01, 0.03)), sd * 22, 12);
       }
-      b.put(ball(0.065, BLACK, 1.2, 0.8, 0.8), 0, 6, { out: 0.01 });
-      const tail = horn(0.3, 0.9, 1.7, null, { pow: 0.4, tip: 0.7, stripes: ['#4a5066', '#c9cfdc'], bands: 6 }); tail.scale.x = -1; tail.rotation.z = -Math.PI / 2; tail.rotation.y = 0.35;
-      b.add(tail, 0.5, b.floor + 0.34, -0.42);
-      const coin = cyl(0.11, 0.11, 0.09, GOLD); coin.rotation.set(1.2, 0, 0.4);
-      const sack = group(ball(0.3, '#dcb878', 1, 0.95, 1), at(ball(0.14, '#dcb878'), 0, 0.29), at(coin, 0.02, 0.4, 0.04));
-      b.put(sack, -50, -27, { out: 0.12, up: true });
+      b.put(ball(0.06, dark, 1.2, 0.9, 0.4), 0, 2, { out: 0.005 });
+      const grin = arc(0.2, 0.05, dark); grin.rotation.z = Math.PI; b.put(group(at(grin, 0, 0.1, 0)), 0, -6);
+      b.put(group(...[-0.12, -0.04, 0.04, 0.12].map(x => at(rbox(0.07, 0.1, 0.08, 0.03, '#fffdf6'), x, 0, 0))), 0, -9.5, { out: 0.02 });
+      // raised ribs on the chest
+      // dented iron helmet with two little horns
+      b.cap(0.64, '#8f98a8', 1.06); b.ring(0.64, '#6d7686', 0.08, 1.07);
+      for (const sd of [-1, 1]) b.put(horn(0.12, 0.32, sd * 0.9, '#fff1cf', { pow: 0.4, tip: 0.8 }), sd * 46, 64, { up: true, out: -0.03 });
+      // bone club in the right hand, round wooden shield on the left
+      const club = group(pill(0.11, 0.56, bone), at(ball(0.13, bone), -0.08, 0.38), at(ball(0.13, bone), 0.08, 0.38), at(ball(0.12, bone), -0.07, -0.37), at(ball(0.12, bone), 0.07, -0.37),
+        at(ball(0.14, bone, 1.05, 0.95, 1.05), 0, -0.12, 0.03));
+      club.scale.setScalar(0.85); b.put(club, -60, -4, { out: 0.05, roll: 14 });   // held high enough to clear the foot, hand fused to the body
+      const wshield = group(cyl(0.36, 0.36, 0.1, '#a0683a'), at(torus(0.36, 0.05, '#6d7686'), 0, 0, 0), at(ball(0.1, '#6d7686', 1, 0.6, 1), 0, 0.06, 0));
+      wshield.children[1].rotation.x = Math.PI / 2; wshield.rotation.x = Math.PI / 2;
+      b.put(group(wshield), 56, -14, { out: 0.03 });   // strapped flat against the arm so it moulds as one piece
+      feet(b, bone);
     },
   },
   {
@@ -394,17 +413,37 @@ const CAST = [
     blurb: 'Pretends to be treasure. Gives it away immediately by giggling.',
     face: { eyes: 'big', ey: 36, eg: 19, es: 1.2, mouth: 'none', cheeks: false },
     paint(P) {
-      const { ctx } = P;
-      ctx.strokeStyle = '#96592c'; ctx.lineWidth = 4;
-      for (const v of [0.15, 0.28, 0.41, 0.7, 0.82]) { ctx.beginPath(); ctx.moveTo(0, P.Y(v)); ctx.lineTo(P.W, P.Y(v)); ctx.stroke(); }
-      for (const u of [0.5 - 0.085, 0.5 + 0.085, 0.085, 0.915]) P.rect(u, 0.5, 0.022, 1, '#ffcb3d');
-      P.rect(0.5, 0.03, 1, 0.06, '#ffcb3d'); P.rect(0.5, 0.56, 1, 0.045, '#5a2f14'); P.rect(0.5, 0.6, 1, 0.03, '#ffcb3d');
+      const { ctx, W } = P;
+      // lid a touch richer than the base, planks with soft grain
+      ctx.fillStyle = '#a8663a'; ctx.fillRect(0, P.Y(1), W, P.Y(0.6) - P.Y(1));
+      ctx.strokeStyle = 'rgba(90,47,20,.22)'; ctx.lineWidth = 2;
+      for (let k = 0; k < 26; k++) { const v = (k % 13) / 13 * 0.95 + 0.02, u0 = (k * 0.37) % 1; ctx.beginPath(); ctx.moveTo(P.X(u0), P.Y(v)); ctx.bezierCurveTo(P.X(u0 + 0.05), P.Y(v + 0.01), P.X(u0 + 0.1), P.Y(v - 0.01), P.X(u0 + 0.16), P.Y(v)); ctx.stroke(); }
+      ctx.strokeStyle = '#7a4422'; ctx.lineWidth = 6;
+      for (const v of [0.16, 0.3, 0.44, 0.72, 0.85]) { ctx.beginPath(); ctx.moveTo(0, P.Y(v)); ctx.lineTo(W, P.Y(v)); ctx.stroke(); }
+      // gold straps with a darker edge and rivets
+      for (const u of [0.5 - 0.085, 0.5 + 0.085, 0.085, 0.915]) {
+        P.rect(u, 0.5, 0.03, 1, '#d99a1e'); P.rect(u, 0.5, 0.022, 1, '#ffcb3d');
+        for (const v of [0.1, 0.36, 0.78, 0.93]) P.ell(u, v, 0.006, 0.012, '#fff1a8');
+      }
+      P.rect(0.5, 0.03, 1, 0.06, '#ffcb3d'); P.rect(0.5, 0.062, 1, 0.008, '#d99a1e');
+      // the mouth: a deep open seam between lid and base, gold lips above and below
+      P.rect(0.5, 0.56, 1, 0.03, '#5a2f14');                                                     // lid gap all round
+      P.rect(0.5, 0.59, 1, 0.03, '#ffcb3d'); P.rect(0.5, 0.53, 1, 0.022, '#ffcb3d');
+      // the open mouth on the front: a wide dark grin under the lid, darker in the middle, pink gum line
+      ctx.fillStyle = '#4a1020'; ctx.beginPath(); ctx.moveTo(P.X(0.4), P.Y(0.575));
+      ctx.bezierCurveTo(P.X(0.415), P.Y(0.47), P.X(0.585), P.Y(0.47), P.X(0.595), P.Y(0.575)); ctx.closePath(); ctx.fill();
+      P.ell(0.5, 0.52, 0.04, 0.025, '#2e0812');
+      P.rect(0.5, 0.567, 0.195, 0.016, '#c2405f');
     },
     build(b) {
-      for (const yaw of [-30, -13, -3, 3, 13, 30]) b.put(ball(0.09, '#fffdf5', 1, 1.4, 0.8), yaw, 5);
-      const tongue = ball(0.2, '#ff7fa3', 1, 0.5, 1.2); tongue.rotation.x = 0.55;
-      b.add(tongue, 0.05, -0.14, b.s.d * 0.84);
-      for (const sd of [-1, 1]) b.put(ball(0.09, CHEEK, 1, 0.62, 0.22), sd * 34, 27);
+      // bigger rounded teeth, two fangs at the corners
+      for (const yaw of [-19, -7, 7, 19]) b.put(ball(0.092, '#fffdf5', 1, 1.35, 0.85), yaw, 4.5, { out: 0.02 });
+      for (const sd of [-1, 1]) b.put(ball(0.1, '#fffdf5', 1, 1.65, 0.9), sd * 31, 3, { out: 0.025 });
+      // big tongue lolling out over the front, with a centre groove
+      const tongue = group(ball(0.28, '#ff7fa3', 1, 0.45, 1.3), at(pill(0.025, 0.28, '#e8557f'), 0, 0.1, 0.02));
+      tongue.children[1].rotation.x = Math.PI / 2; tongue.rotation.x = 0.6;
+      b.add(tongue, 0.06, -0.15, b.s.d * 0.9);
+      for (const sd of [-1, 1]) b.put(ball(0.095, CHEEK, 1, 0.62, 0.22), sd * 34, 27);
     },
   },
   {
@@ -461,18 +500,20 @@ const CAST = [
     blurb: 'Only knows the battle theme. Plays it at breakfast. Plays it at bedtime.',
     face: { eyes: 'none', ey: 14, mouth: 'wide', my: 12, eg: 24 },
     build(b) {
+      // original look, simplified for a squishy: every part chunky, rounded and fused to the body
       for (const sd of [-1, 1]) {
-        const bump = group(ball(0.25, b.color), at(ball(0.17, WHITE, 1, 1, 0.4), 0, 0.03, 0.2), at(ball(0.105, BLACK, 1, 1.1, 0.35), -sd * 0.015, 0.03, 0.245), at(ball(0.034, WHITE, 1, 1, 0.5), -sd * 0.015 - 0.03, 0.08, 0.275));
-        const { p } = b.surf(sd * 27, 58); bump.rotation.z = -sd * 0.12; b.add(bump, p.x * 1.1, p.y + 0.02, p.z + 0.02);
-        b.add(ball(0.2, b.color, 1.1, 0.55, 1.3), sd * 0.42, b.floor + 0.1, 0.6);
+        const bump = group(ball(0.27, b.color), at(ball(0.18, WHITE, 1, 1, 0.4), 0, 0.03, 0.21), at(ball(0.11, BLACK, 1, 1.1, 0.35), -sd * 0.015, 0.03, 0.26), at(ball(0.036, WHITE, 1, 1, 0.5), -sd * 0.015 - 0.03, 0.08, 0.29));
+        const { p } = b.surf(sd * 27, 58); bump.rotation.z = -sd * 0.12; b.add(bump, p.x * 1.08, p.y, p.z + 0.01);
+        b.add(ball(0.21, b.color, 1.1, 0.6, 1.25), sd * 0.42, b.floor + 0.12, 0.56);
       }
       const red = '#e8524a';
-      const hat = group(ball(0.36, red, 1, 0.32, 1), horn(0.3, 0.48, 1.0, red, { pow: 0.5, tip: 0.6 }), at(ball(0.12, '#fff3a8'), 0.24, 0.42, 0));
+      const hat = group(ball(0.38, red, 1, 0.34, 1), horn(0.33, 0.4, 0.8, red, { pow: 0.5, tip: 0.75 }), at(ball(0.14, '#fff3a8'), 0.15, 0.36, 0));
       hat.rotation.set(-0.35, -0.4, 0);
-      b.add(hat, 0, b.s.h * 0.93, -0.22);
+      b.add(hat, 0, b.s.h * 0.9, -0.22);
+      // stubby lute pressed flat against the tummy: no thin neck to snap or tear
       const wood = '#8a5a3c';
-      const lute = group(ball(0.27, '#e6ad62', 1, 1.2, 0.6), at(ball(0.08, '#5a3216', 1, 1, 0.3), 0, 0.02, 0.14), at(pill(0.085, 0.26, wood), 0, 0.48, 0.03), at(ball(0.12, wood), 0, 0.7, 0.03));
-      b.put(lute, -50, -26, { out: 0.04, roll: -50 });
+      const lute = group(ball(0.28, '#e6ad62', 1, 1.15, 0.45), at(ball(0.085, '#5a3216', 1, 1, 0.3), 0, 0.02, 0.12), at(rbox(0.15, 0.34, 0.12, 0.06, wood), 0, 0.42, 0.0), at(ball(0.11, wood, 1, 1, 0.8), 0, 0.62, 0));
+      b.put(lute, -36, -14, { out: -0.02, roll: -40 });   // raised so the lute body clears the foot
     },
   },
   /* ---------- Series 2: Snack Quest ---------- */

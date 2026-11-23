@@ -1,9 +1,9 @@
 export default [
   { id: 'dungeon', name: 'Dungeon Crawl', tag: 'Brave little heroes of the snack-sized dungeon.', bag: ['#b06bff', '#6a2fd0'],
     pal: ['#7db4ea', '#b9a0f5', '#f25a52', '#7fe36c', '#ffd873', '#a3acbf', '#5b3fb5', '#e8524a'],
-    doods: ['@Sir Squish', '@Wizzle', '@Embry', '@King Gloop', '@Mendy', '@Pilf', '@Sporo', '@Chompy', '@Shardy', '@Boo-Hoo', '@Brewster', '@Strum',
+    doods: ['@Sir Squish', '@Wizzle', '@Embry', '@King Gloop', '@Mendy', '@Rattles', '@Sporo', '@Chompy', '@Shardy', '@Boo-Hoo', '@Brewster', '@Strum',
       'Torchy|Lamplighter|drop|4|c|happy.smile|flame,arms,band:n:0.3',
-      'Rattles|Skeleton Guard|egg|w|-|big.teeth|helmet:5:y,hold:bone,hold2:shield:2,arms',
+      'Pilf|Rogue|egg|n|w|big.w|ears:round:k,mask:k,tail:fat:k,hold:coin,arms,feet',
       'Bigby|Dungeon Boss|squat|6|1|dot.fang|horns:bull,hat:crown,cape:2,arms,feet'] },
   { id: 'snacks', name: 'Snack Quest', tag: 'Adventurers you could (but should not) eat.', bag: ['#ffb347', '#ff6f61'],
     pal: ['#ffd873', '#d6aa7c', '#ff5470', '#8fd3ff', '#c98b4d', '#fff1dc', '#a9591f', '#7ddc7a'],
