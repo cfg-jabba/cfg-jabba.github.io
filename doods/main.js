@@ -233,27 +233,28 @@ function killPack() {
 /* ---------- state ---------- */
 
 const q = new URLSearchParams(location.search);
-const st = { theme: Math.max(0, Math.min(THEMES.length - 1, (+q.get('theme') || 1) - 1)), mode: q.get('mode') === 'lineup' ? 'lineup' : 'box', sel: -1 };
+const st = { theme: Math.max(0, Math.min(THEMES.length - 1, (+q.get('theme') || 1) - 1)), mode: ['lineup', 'play'].includes(q.get('mode')) ? q.get('mode') : 'box', sel: -1 };
 let rip = null, flying = true, bounds = { hx: 1, hz: 1 };
 const goal = { pos: new V3(), target: new V3() };
 const STAGE = new V3(0, 0, 6.6);
 
-function clearDoods() { blobs.forEach(kill); blobs = []; st.sel = -1; }
+function clearDoods() { blobs.forEach(kill); blobs = []; st.sel = -1; drag = null; }
 function enter() {
   clearDoods(); killPack(); rip = null;
   const th = THEMES[st.theme];
   if (st.mode === 'box') pack = buildPack(st.theme);
-  else { blobs = specsFor(st.theme).map(spawn); layout(); }
+  else { blobs = specsFor(st.theme).map(spawn); st.mode === 'play' ? scatter() : layout(); }
+  controls.enabled = st.mode !== 'play'; playmat.visible = st.mode === 'play'; $('#swipe').hidden = true;
   $('#tname').textContent = th.name; $('#tnum').textContent = `Series ${String(st.theme + 1).padStart(2, '0')} / ${THEMES.length}`;
   document.querySelectorAll('#mode button').forEach(b => b.classList.toggle('on', b.dataset.m === st.mode));
   document.documentElement.style.setProperty('--theme', th.bag[1]);
   select(-1);
-  history.replaceState(null, '', `?theme=${st.theme + 1}${st.mode === 'lineup' ? '&mode=lineup' : ''}`);
+  history.replaceState(null, '', `?theme=${st.theme + 1}${st.mode !== 'box' ? '&mode=' + st.mode : ''}`);
 }
 function footer() {
   const box = st.mode === 'box', n = foundSet(st.theme).size;
-  $('#hint').textContent = box ? `Tap a bag to rip it open · ${n}/${PER} found` : 'Tap a Dood · drag to look around';
-  $('#all').textContent = box ? '🎲 Rip a random bag' : '⬇ Download this set (.glb)';
+  $('#hint').textContent = box ? `3 Doods in every bag! Tap one, then swipe to rip · ${n}/${PER} found` : st.mode === 'play' ? 'Squish them! Grab one and fling it!' : 'Tap a Dood · drag to look around';
+  $('#all').textContent = box ? '🎲 Rip a random bag' : st.mode === 'play' ? '🌈 Shake them up!' : '⬇ Download this set (.glb)';
 }
 
 function layout() {
@@ -282,7 +283,7 @@ function overview() {
   const pts = [];
   if (st.mode === 'box') { for (const x of [-1, 1]) for (const [y, z] of [[0, 3], [BOX.back + 0.2, -3], [0, -3]]) pts.push(new V3(x * (BOX.w / 2 + 0.3), y, z)); return fit(pts, (portrait() ? 30 : 22) * D, new V3(0, 3.2, 0)); }
   for (const x of [-1, 1]) for (const z of [-1, 1]) for (const y of [0, 3.1]) pts.push(new V3(x * bounds.hx, y, z * bounds.hz));
-  return fit(pts, (portrait() ? 54 : 44) * D, new V3(0, 0.8, 0));
+  return fit(pts, (st.mode === 'play' ? (portrait() ? 62 : 52) : (portrait() ? 54 : 44)) * D, new V3(0, 0.8, 0));
 }
 function closeup(p, lift = 0) {
   const asp = innerWidth / innerHeight, tanH = Math.tan(camera.fov * D / 2), dist = Math.max(9, 3.4 / (2 * tanH * asp)), vh = 2 * dist * tanH;
@@ -297,6 +298,7 @@ function resize() {
   renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   if (st.mode === 'lineup') layout();
+  if (st.mode === 'play') arenaSize();
   refocus();
 }
 
@@ -317,7 +319,8 @@ function select(i, fresh) {
     const accent = spec.accent || (pale(spec.color) ? THEMES[st.theme].bag[1] : spec.color);
     card.querySelector('.stats').innerHTML = ['HP', 'ATK', 'CUTE'].map((k, j) =>
       `<span>${k}</span><span class="pips" style="--c:${accent}">${[0, 1, 2, 3, 4].map(n => `<i class="${n < spec.stats[j] ? 'f' : ''}"></i>`).join('')}</span>`).join('');
-    $('#prev').hidden = $('#next').hidden = box; $('#again').hidden = !box;
+    $('#prev').hidden = $('#next').hidden = box && blobs.length < 2; $('#again').hidden = !box;
+    $('#new').hidden = !(fresh || blobs[i].fresh);
     blobs[i].sv = -4; if (!box) blobs[i].hop = 0; blobs[i].wv = 2.5;
   }
   footer(); refocus();
@@ -326,11 +329,112 @@ function closeCard() {
   if (st.mode === 'box') { clearDoods(); if (pack && !pack.bags.length) { killPack(); pack = buildPack(st.theme); } }
   select(-1);
 }
-const step = d => select((st.sel + d + blobs.length) % blobs.length);
+const step = d => select((st.sel + d + blobs.length) % blobs.length);   // also flips through the 3 from a bag
 $('#x').onclick = closeCard;
 $('#prev').onclick = () => step(-1);
 $('#next').onclick = () => step(1);
 $('#again').onclick = () => { closeCard(); ripRandom(); };
+
+/* ---------- feel: sparkles, sound, buzz (sound starts quiet, can be muted) ---------- */
+
+const spriteTex = star => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d'); c.fillStyle = '#fff'; c.beginPath();
+  if (star) for (let i = 0; i < 10; i++) { const r = i % 2 ? 12 : 30, a = i / 10 * TAU - Math.PI / 2; c.lineTo(32 + Math.cos(a) * r, 32 + Math.sin(a) * r); } else c.arc(32, 32, 28, 0, TAU);
+  c.fill(); return new THREE.CanvasTexture(cv); };
+const STAR = spriteTex(true), DOT = spriteTex(false), PARTY = ['#ffd93b', '#ff5fa8', '#2fd3c9', '#b06bff', '#ffffff'];
+const sparks = [];
+function sparkle(pos, n, colors = PARTY, { speed = 5, up = 4, size = 0.35, star = true, life = 0.9 } = {}) {
+  for (let k = 0; k < n && sparks.length < 260; k++) {
+    const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: star ? STAR : DOT, color: colors[k % colors.length], transparent: true, depthWrite: false }));
+    const a = Math.random() * TAU, sp = speed * (0.4 + Math.random() * 0.6);
+    m.position.copy(pos); m.scale.setScalar(size * (0.6 + Math.random() * 0.8)); scene.add(m);
+    sparks.push({ m, v: new V3(Math.cos(a) * sp, up * (0.6 + Math.random()), Math.sin(a) * sp), life: life * (0.7 + Math.random() * 0.5), t: 0, s0: m.scale.x, spin: (Math.random() - 0.5) * 8 });
+  }
+}
+function tickSparks(dt) {
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const p = sparks[i]; p.t += dt; p.v.y -= 9 * dt; p.m.position.addScaledVector(p.v, dt); p.m.material.rotation += p.spin * dt;
+    const k = 1 - p.t / p.life; p.m.material.opacity = Math.max(0, k); p.m.scale.setScalar(p.s0 * (0.5 + 0.5 * Math.max(0, k)));
+    if (p.t >= p.life) { scene.remove(p.m); p.m.material.dispose(); sparks.splice(i, 1); }
+  }
+}
+let actx = null, master = null, soundOn = true, touched = false;   // no sound or buzz until the first touch
+try { soundOn = localStorage.getItem('doods-sound') !== '0'; } catch { /* storage blocked: default on, quiet */ }
+function audio() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.gain.value = 0.1; master.connect(actx.destination); } catch { return null; } }
+  if (actx.state === 'suspended') actx.resume(); return actx;
+}
+function tone(f0, f1, dur, k = 1, type = 'sine', delay = 0) {
+  if (!soundOn || !touched) return; const a = audio(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + delay;
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.6 * Math.min(1, k), t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.02);
+}
+function noise(dur, freq, k = 1) {
+  if (!soundOn || !touched) return; const a = audio(); if (!a) return;
+  const buf = a.createBuffer(1, a.sampleRate * dur | 0, a.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(); src.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; g.gain.value = 0.5 * k;
+  src.connect(f).connect(g).connect(master); src.start();
+}
+const boing = (k = 1, p = 1) => tone(520 * p, 150 * p, 0.26, k);
+const squeak = (k = 1, p = 1) => tone(320 * p, 760 * p, 0.12, k * 0.7, 'triangle');
+const crinkle = (k = 1) => noise(0.07, 2600 + Math.random() * 1500, k);
+const reveal = () => { noise(0.12, 900, 1); [523, 659, 784, 1047].forEach((f, i) => tone(f, f * 1.01, 0.22, 0.5, 'triangle', 0.08 + i * 0.07)); };
+const buzz = ms => { if (!touched) return; try { navigator.vibrate?.(ms); } catch { /* no haptics here */ } };
+const sndBtn = $('#snd'), sndIcon = () => { sndBtn.textContent = soundOn ? '🔈' : '🔇'; };
+sndIcon(); sndBtn.onclick = () => { soundOn = !soundOn; sndIcon(); try { localStorage.setItem('doods-sound', soundOn ? '1' : '0'); } catch { /* ignore */ } if (soundOn) boing(0.5); };
+
+/* ---------- play mode: squish, grab, fling, bounce ---------- */
+
+const ARENA = { hx: 6, hz: 3.4 };
+const playmat = new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshStandardMaterial({ color: '#f3ecff', roughness: 0.95 }));
+playmat.rotation.x = -Math.PI / 2; playmat.position.y = 0.005; playmat.receiveShadow = true; playmat.visible = false; scene.add(playmat);
+function arenaSize() {
+  const asp = innerWidth / innerHeight; ARENA.hx = asp < 0.85 ? 4.2 : 6.6; ARENA.hz = asp < 0.85 ? 5.2 : 3.8;
+  playmat.scale.set(ARENA.hx + 1.4, ARENA.hz + 1.4, 1); bounds = { hx: ARENA.hx + 0.6, hz: ARENA.hz + 0.6 };
+}
+function scatter() {
+  arenaSize();
+  blobs.forEach((b, k) => {
+    b.held = true; b.p = new V3((Math.random() * 2 - 1) * ARENA.hx * 0.8, 3 + k * 0.6, (Math.random() * 2 - 1) * ARENA.hz * 0.8);
+    b.v = new V3((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3); b.spin = (Math.random() - 0.5) * 4; b.sq = 0;
+    place(b, b.p.x, b.p.z); b.root.position.copy(b.p);
+  });
+}
+function shakeUp() { blobs.forEach(b => { b.v.set((Math.random() - 0.5) * 10, 9 + Math.random() * 6, (Math.random() - 0.5) * 8); b.spin = (Math.random() - 0.5) * 10; b.sv = -6; }); boing(1, 0.8); buzz([20, 30, 20]); }
+let drag = null;
+function tickPlay(dt) {
+  const R = 1.08;
+  for (const b of blobs) {
+    if (drag && b === drag.b) continue;
+    b.v.y -= 24 * dt; b.p.addScaledVector(b.v, dt);
+    if (b.p.y < 0) {
+      const imp = -b.v.y; b.p.y = 0;
+      if (imp > 3) {
+        b.v.y = imp * 0.48; b.sv = -Math.min(14, imp * 0.9); b.wv += (Math.random() - 0.5) * imp * 0.6;
+        boing(Math.min(1, imp / 14), 0.75 + Math.random() * 0.5); buzz(Math.min(30, imp * 2 | 0));
+        if (imp > 7) sparkle(new V3(b.p.x, 0.25, b.p.z), Math.min(12, imp | 0), PARTY, { speed: 3.5, up: 3, size: 0.28 });
+      } else b.v.y = 0;
+      const f = Math.exp(-4 * dt); b.v.x *= f; b.v.z *= f;
+    }
+    for (const [ax, lim] of [['x', ARENA.hx], ['z', ARENA.hz]]) if (Math.abs(b.p[ax]) > lim) {
+      b.p[ax] = Math.sign(b.p[ax]) * lim;
+      if (Math.abs(b.v[ax]) > 2.5) { b.sv = -4; b.wv += b.v[ax] * 0.25; boing(Math.min(1, Math.abs(b.v[ax]) / 16), 1.3); buzz(10); }
+      b.v[ax] *= -0.6;
+    }
+    b.spin *= Math.exp(-2 * dt); b.root.rotation.y += b.spin * dt;
+  }
+  for (let pass = 0; pass < 3; pass++) for (let i = 0; i < blobs.length; i++) for (let j = i + 1; j < blobs.length; j++) {   // soft bumps between Doods (3 passes so piles separate cleanly)
+    const a = blobs[i], c = blobs[j], dx = c.p.x - a.p.x, dz = c.p.z - a.p.z, d = Math.hypot(dx, dz) + 1e-6;
+    if (d < 2 * R && Math.abs(c.p.y - a.p.y) < 1.6) {
+      const nx = dx / d, nz = dz / d, push = (2 * R - d) / 2, fa = drag && a === drag.b ? 0 : 1, fc = drag && c === drag.b ? 0 : 1;
+      a.p.x -= nx * push * fa * (fc ? 1 : 2); a.p.z -= nz * push * fa * (fc ? 1 : 2); c.p.x += nx * push * fc * (fa ? 1 : 2); c.p.z += nz * push * fc * (fa ? 1 : 2);
+      const rel = (c.v.x - a.v.x) * nx + (c.v.z - a.v.z) * nz;
+      if (rel < 0) { const k = -rel * 0.45; if (fa) { a.v.x -= nx * k; a.v.z -= nz * k; } if (fc) { c.v.x += nx * k; c.v.z += nz * k; } if (-rel > 4) { a.sv = c.sv = -3; boing(Math.min(1, -rel / 14), 1.7); } }
+    }
+  }
+  for (const b of blobs) { b.root.position.copy(b.p); b.proxy.position.set(b.p.x, b.p.y + 1.2, b.p.z); b.shade.position.set(b.p.x, 0.012, b.p.z); }
+}
 
 /* ---------- ripping a bag ---------- */
 
@@ -346,35 +450,49 @@ function startRip(k, forceIdx) {
   pack.bags.forEach((b, i) => { b.main.userData.bag = i; });
   scene.attach(bag.g);
   bag.strip.material.transparent = true;
-  rip = { bag, t: 0, from: bag.g.position.clone(), fromQ: bag.g.quaternion.clone(), idx: forceIdx ?? weightedPick(st.theme), blob: null };
-  select(-1);
+  rip = { bag, t: 0, phase: 'fly', tp: 0, shown: 0, swiping: false, from: bag.g.position.clone(), fromQ: bag.g.quaternion.clone(), idxs: forceIdx != null ? [forceIdx, weightedPick(st.theme), weightedPick(st.theme)] : [0, 1, 2].map(() => weightedPick(st.theme)), blob: null };
+  select(-1); squeak(0.6, 0.9); buzz(10); controls.enabled = false;   // the swipe tears the bag, not the camera
 }
 function ripRandom() { if (pack && pack.bags.length) startRip(Math.floor(Math.random() * pack.bags.length)); }
 const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
 const HOVER = new V3(STAGE.x, 2.5, STAGE.z);
+const tearPoint = (u, g) => g.localToWorld(new V3((u - 0.5) * BW, TEAR * BH / 2, 0.25));
 function tickRip(dt) {
   const r = rip, g = r.bag.g; r.t += dt;
-  const fly = ease(r.t / 0.55), tear = ease((r.t - 0.8) / 0.4), pop = (r.t - 1.2) / 0.65;
-  if (pop < 0) {
+  if (r.phase === 'fly') {
+    const fly = ease(r.t / 0.55);
     g.position.lerpVectors(r.from, HOVER, fly); g.position.y += Math.sin(fly * Math.PI) * 1.2;
     g.quaternion.slerpQuaternions(r.fromQ, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.12, 0)), fly);
     g.scale.setScalar(1 + 0.25 * fly);
-    if (r.t > 0.55 && r.t < 0.8) g.rotation.z = Math.sin(r.t * 60) * 0.05;
-  }
-  r.bag.strip.position.set(tear * 1.6, tear * 0.9, 0); r.bag.strip.rotation.z = -tear * 1.3; r.bag.strip.material.opacity = 1 - tear;
-  if (pop >= 0 && !r.blob) {
-    r.blob = spawn(specsFor(st.theme)[r.idx], r.idx); r.blob.held = true; blobs = [r.blob];
-    place(r.blob, STAGE.x, STAGE.z); r.blob.root.rotation.y = 0; r.blob.yaw = 0;
-  }
-  if (r.blob) {
+    if (r.t > 0.6) { r.phase = 'swipe'; r.t = 0; $('#swipe').hidden = false; }
+  } else if (r.phase === 'swipe') {
+    g.position.copy(HOVER); g.position.y += Math.sin(r.t * 3) * 0.06;
+    g.rotation.set(0, 0.12, Math.sin(r.t * 2) * 0.03 + (r.swiping ? Math.sin(r.t * 55) * 0.012 : 0));
+    r.shown += (r.tp - r.shown) * Math.min(1, dt * 18);
+    r.bag.strip.position.set(r.shown * 0.35, r.shown * 0.28, 0.02); r.bag.strip.rotation.z = -r.shown * 0.5;
+    if (r.tp >= 1) { r.phase = 'tear'; r.t = 0; $('#swipe').hidden = true; crinkle(1); buzz(25); sparkle(tearPoint(0.5, g), 14, THEMES[st.theme].bag.concat(['#ffffff']), { speed: 4, up: 3, size: 0.22, star: false }); }
+  } else if (r.phase === 'tear') {
+    const k = ease(r.t / 0.3), s0 = r.shown;
+    r.bag.strip.position.set(0.35 * s0 + k * 1.4, 0.28 * s0 + k * 0.8, 0.02); r.bag.strip.rotation.z = -0.5 * s0 - k * 0.9; r.bag.strip.material.opacity = 1 - k;
+    if (r.t > 0.3) { r.phase = 'pop'; r.t = 0; }
+  } else {
+    const pop = r.t / 0.65;
+    if (!r.blob) {   // three Doods per bag
+      blobs = r.idxs.map((idx, k) => { const b = spawn(specsFor(st.theme)[idx], idx); b.held = true; place(b, STAGE.x + (k - 1) * 2.7, STAGE.z + (k === 1 ? 0.4 : 0)); b.root.rotation.y = 0; b.yaw = (k - 1) * -0.25; return b; });
+      r.blob = blobs[1];
+      const rare = r.idxs.some(i => specsFor(st.theme)[i].rarity !== 'Common');
+      reveal(); buzz([20, 40, 30]);
+      sparkle(new V3(HOVER.x, HOVER.y + 0.6, HOVER.z), rare ? 70 : 45, rare ? ['#ffd93b', '#fff3b0', '#ffffff', '#ffb347'] : PARTY, { speed: 8, up: 6, size: rare ? 0.45 : 0.38, life: 1.3 });
+    }
     const e = Math.min(1, pop);
-    r.blob.root.position.y = Math.max(0, (HOVER.y + 0.6) * (1 - e * e) + Math.sin(e * Math.PI) * 1.2);
+    blobs.forEach((b, k) => { const ek = Math.min(1, Math.max(0, pop * 1.25 - k * 0.12)); b.root.position.y = Math.max(0, (HOVER.y + 0.6) * (1 - ek * ek) + Math.sin(ek * Math.PI) * 1.4); });
     g.position.y = HOVER.y - ease(pop) * 4.2; g.rotation.x = -ease(pop) * 1.1; g.scale.setScalar(1.25 * (1 - ease(pop) * 0.9));
-    if (pop >= 1) {
-      r.blob.root.position.y = 0; r.blob.held = false; r.blob.sv = -7;
+    if (pop >= 1.1) {
+      blobs.forEach(b => { b.root.position.y = 0; b.held = false; b.sv = -7; b.fresh = markFound(st.theme, b.idx); });
+      boing(0.8, 0.9);
       r.bag.strip.material.dispose(); scene.remove(g);
-      const fresh = markFound(st.theme, r.idx); rip = null;
-      select(0, fresh);
+      rip = null; controls.enabled = st.mode !== 'play';
+      select(1, blobs[1].fresh);
     }
   }
 }
@@ -385,16 +503,61 @@ const ptr = new THREE.Vector2(), down = { x: 0, y: 0, ok: false };
 function cast(e) { ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); rc.setFromCamera(ptr, camera); }
 function pickDood(e) { cast(e); const hit = rc.intersectObjects(blobs.filter((b, i) => st.sel < 0 || i === st.sel).map(b => b.proxy), false)[0]; return hit ? blobs.indexOf(hit.object.userData.b) : -1; }
 function pickBag(e) { if (!pack || rip || st.sel >= 0) return -1; cast(e); const hit = rc.intersectObjects(pack.bags.map(b => b.main), false)[0]; return hit ? hit.object.userData.bag : -1; }
-canvas.addEventListener('pointerdown', e => { down.x = e.clientX; down.y = e.clientY; down.ok = true; });
-canvas.addEventListener('pointerup', e => {
+const floorPlane = new THREE.Plane(new V3(0, 1, 0), 0), hitP = new V3();
+function floorAt(e) { cast(e); return rc.ray.intersectPlane(floorPlane, hitP) ? hitP.clone() : null; }
+canvas.addEventListener('pointerdown', e => {
+  touched = true; audio(); down.x = e.clientX; down.y = e.clientY; down.ok = true;
+  if (rip && rip.phase === 'swipe') { rip.sx = e.clientX; rip.sy = e.clientY; rip.base = rip.tp; rip.swiping = true; canvas.setPointerCapture(e.pointerId); return; }
+  if (rip) return;
+  const i = pickDood(e);
+  if (i < 0) return;
+  const b = blobs[i]; b.press = true; squeak(0.5, 0.9 + Math.random() * 0.3); buzz(8);
+  if (st.mode === 'play') { drag = { b, trail: [], lifted: false }; canvas.setPointerCapture(e.pointerId); }
+});
+canvas.addEventListener('pointermove', e => {
+  if (rip && rip.swiping) {
+    const need = Math.min(innerWidth * 0.55, 360), tp = Math.min(1, rip.base + Math.hypot(e.clientX - rip.sx, e.clientY - rip.sy) / need);
+    if (tp > rip.tp) {
+      if (Math.floor(tp * 7) > Math.floor(rip.tp * 7)) { crinkle(0.6); buzz(6); sparkle(tearPoint(Math.min(1, tp), rip.bag.g), 3, ['#ffffff', THEMES[st.theme].bag[0]], { speed: 2, up: 2.5, size: 0.16, star: false, life: 0.6 }); }
+      rip.tp = tp;
+    }
+    return;
+  }
+  if (drag) {
+    if (!drag.lifted && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10) { drag.lifted = true; drag.b.press = false; squeak(0.5, 1.3); }
+    const p = drag.lifted && floorAt(e);
+    if (p) {
+      p.x = Math.max(-ARENA.hx, Math.min(ARENA.hx, p.x)); p.z = Math.max(-ARENA.hz, Math.min(ARENA.hz, p.z));
+      drag.b.p.lerp(new V3(p.x, 1.4, p.z), 0.6); drag.b.v.set(0, 0, 0);
+      drag.trail.push({ p: drag.b.p.clone(), t: performance.now() }); if (drag.trail.length > 6) drag.trail.shift();
+    }
+    return;
+  }
+  if (e.pointerType === 'mouse' && !e.buttons) canvas.style.cursor = pickDood(e) >= 0 || pickBag(e) >= 0 ? 'pointer' : st.mode === 'play' ? 'default' : 'grab';
+});
+function endPointer(e) {
+  if (rip && rip.swiping) { rip.swiping = false; if (rip.tp > 0.8) rip.tp = 1; return; }
+  if (drag) {
+    const b = drag.b; b.press = false;
+    if (drag.lifted && drag.trail.length > 1) {
+      const a = drag.trail[0], z = drag.trail[drag.trail.length - 1], sec = Math.max(16, z.t - a.t) / 1000;
+      b.v.set((z.p.x - a.p.x) / sec, 0, (z.p.z - a.p.z) / sec); const sp = Math.hypot(b.v.x, b.v.z);
+      if (sp > 22) b.v.multiplyScalar(22 / sp);
+      b.v.y = 3 + Math.min(22, sp) * 0.35; b.spin = (Math.random() - 0.5) * sp * 0.8; b.sv = 5; boing(0.4, 1.5); buzz(12);
+    } else { b.sv = 9; b.v.y = 8; b.wv += (Math.random() - 0.5) * 6; boing(0.8, 1); buzz(15); sparkle(new V3(b.p.x, 2, b.p.z), 10, PARTY, { speed: 3, up: 4, size: 0.3 }); }
+    drag = null; down.ok = false; return;
+  }
+  const pressed = blobs.find(b => b.press);
+  if (pressed) { pressed.press = false; pressed.sv = 8; boing(0.6, 1.1); }
   if (!down.ok || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8 || rip) return;
   down.ok = false;
   const i = pickDood(e);
-  if (i >= 0 && i === st.sel) { blobs[i].sv = -5; blobs[i].wv = (Math.random() < 0.5 ? -1 : 1) * 4; return; }
+  if (i >= 0 && i === st.sel) { blobs[i].sv = -5; blobs[i].wv = (Math.random() < 0.5 ? -1 : 1) * 4; sparkle(new V3(blobs[i].root.position.x, 2.2, blobs[i].root.position.z), 8, PARTY, { speed: 3, up: 3, size: 0.28 }); return; }
   if (st.mode === 'box') { const k = pickBag(e); if (k >= 0) startRip(k); else if (st.sel >= 0 && i < 0) closeCard(); return; }
   select(i);
-});
-canvas.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && !e.buttons) canvas.style.cursor = pickDood(e) >= 0 || pickBag(e) >= 0 ? 'pointer' : 'grab'; });
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
 controls.addEventListener('start', () => { flying = false; });
 addEventListener('keydown', e => {
   if (e.key === 'Escape') { $('#picker').classList.remove('on'); if (st.sel >= 0) closeCard(); }
@@ -429,7 +592,7 @@ async function download(specs, filename) {
 }
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 $('#glb').onclick = () => st.sel >= 0 && download([blobs[st.sel].spec], `dood-${slug(blobs[st.sel].spec.name)}.glb`);
-$('#all').onclick = () => st.mode === 'box' ? ripRandom() : download(specsFor(st.theme), `doods-${slug(THEMES[st.theme].name)}.glb`);
+$('#all').onclick = () => st.mode === 'box' ? ripRandom() : st.mode === 'play' ? shakeUp() : download(specsFor(st.theme), `doods-${slug(THEMES[st.theme].name)}.glb`);
 
 /* ---------- go ---------- */
 
@@ -455,13 +618,18 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1), t = clock.elapsedTime;
   if (rip) tickRip(dt);
+  if (st.mode === 'play') tickPlay(dt);
+  tickSparks(dt);
   blobs.forEach((b, i) => {
     b.sv += (-70 * b.s - 5 * b.sv) * dt; b.s += b.sv * dt;
     const breathe = Math.sin(t * 1.8 + b.ph) * 0.025, sy = 1 + b.s * 0.16 + breathe;
     b.vis += ((st.sel < 0 || i === st.sel ? 1 : 0) - b.vis) * Math.min(1, dt * 9);
     b.root.visible = b.vis > 0.02;
     b.shade.material.opacity = b.vis * Math.max(0, 1 - b.root.position.y * 0.5); b.shade.scale.setScalar(b.vis);
-    b.root.scale.set((1 - (sy - 1) * 0.8) * b.vis, sy * b.vis, (1 - (sy - 1) * 0.8) * b.vis);
+    b.sq = (b.sq || 0) + ((b.press ? 1 : 0) - (b.sq || 0)) * Math.min(1, dt * (b.press ? 14 : 22));   // press-and-hold squish
+    const fly = st.mode === 'play' && b.v ? Math.min(0.28, Math.abs(b.v.y) * 0.014) : 0;
+    const syy = sy * (1 - 0.42 * b.sq) * (1 + fly), sxz = (1 - (sy - 1) * 0.8) * (1 + 0.3 * b.sq) * (1 - fly * 0.5);
+    b.root.scale.set(sxz * b.vis, syy * b.vis, sxz * b.vis);
     b.wv += (-60 * b.w - 3.2 * b.wv) * dt; b.w += b.wv * dt; b.root.rotation.z = b.w * 0.35;
     if (!b.held) {
       if (b.hop < 0 && st.sel < 0 && (b.nextHop -= dt) < 0) { b.hop = 0; b.sv = -3; }

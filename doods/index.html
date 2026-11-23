@@ -31,6 +31,11 @@
   #bar button { padding:7px 12px; font-size:14px; background:#f3ecfb; box-shadow:0 3px 0 #cdbbe4; }
   #tpick { min-width:170px; background:var(--theme) !important; color:#fff !important; box-shadow:0 3px 0 var(--ink) !important; line-height:1.05; padding:5px 16px !important; }
   #tpick small { display:block; font-size:10px; font-weight:600; opacity:.9; letter-spacing:.6px; text-transform:uppercase; }
+  #swipe { position:fixed; left:50%; top:58%; transform:translateX(-50%); z-index:6; text-align:center; pointer-events:none; color:#fff; font:700 22px Fredoka, sans-serif; text-shadow:0 2px 0 var(--ink),0 0 12px rgba(58,21,96,.6); }
+  #swipe .track { width:220px; height:44px; margin:0 auto 6px; border-radius:22px; background:rgba(255,255,255,.22); border:3px dashed #fff; position:relative; }
+  #swipe .finger { position:absolute; top:2px; left:6px; font-size:32px; animation:swipe 1.3s ease-in-out infinite; }
+  @keyframes swipe { 0% { left:6px; opacity:0 } 15% { opacity:1 } 85% { left:170px; opacity:1 } 100% { left:180px; opacity:0 } }
+  #snd { position:fixed; right:14px; bottom:14px; z-index:7; width:46px; height:46px; border-radius:50%; font-size:22px; }
   #mode button.on { background:var(--ink); color:#fff; box-shadow:0 3px 0 var(--pink); }
   @media (min-width:1100px) { #bar { top:26px; } }
   #foot { position:fixed; left:0; right:0; bottom:calc(14px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; transition:opacity .25s; }
@@ -84,8 +89,11 @@
   <div class="grp" id="mode">
     <button data-m="box">📦 Blind bags</button>
     <button data-m="lineup">👀 All 15</button>
+    <button data-m="play">🤸 Play</button>
   </div>
 </nav>
+<div id="swipe" hidden><div class="track"><span class="finger">👉</span></div><b>Swipe across to rip it!</b></div>
+<button id="snd" aria-label="Sound">🔈</button>
 <div id="foot">
   <div id="hint"></div>
   <button id="all"></button>
